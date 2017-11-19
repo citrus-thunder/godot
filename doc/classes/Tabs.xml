@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<class name="Tabs" inherits="Control" category="Core" version="3.0.alpha.custom_build">
+<class name="Tabs" inherits="Control" category="Core" version="3.0-alpha">
 	<brief_description>
 		Tabs Control.
 	</brief_description>
@@ -161,9 +161,9 @@
 		</method>
 	</methods>
 	<members>
-		<member name="current_tab" type="int" setter="set_current_tab" getter="get_current_tab" brief="">
+		<member name="current_tab" type="int" setter="set_current_tab" getter="get_current_tab">
 		</member>
-		<member name="tab_close_display_policy" type="int" setter="set_tab_close_display_policy" getter="get_tab_close_display_policy" brief="" enum="Tabs.CloseButtonDisplayPolicy">
+		<member name="tab_close_display_policy" type="int" setter="set_tab_close_display_policy" getter="get_tab_close_display_policy" enum="Tabs.CloseButtonDisplayPolicy">
 		</member>
 	</members>
 	<signals>
@@ -213,11 +213,11 @@
 		</constant>
 		<constant name="ALIGN_MAX" value="3">
 		</constant>
+		<constant name="CLOSE_BUTTON_SHOW_NEVER" value="0">
+		</constant>
 		<constant name="CLOSE_BUTTON_SHOW_ACTIVE_ONLY" value="1">
 		</constant>
 		<constant name="CLOSE_BUTTON_SHOW_ALWAYS" value="2">
-		</constant>
-		<constant name="CLOSE_BUTTON_SHOW_NEVER" value="0">
 		</constant>
 		<constant name="CLOSE_BUTTON_MAX" value="3">
 		</constant>

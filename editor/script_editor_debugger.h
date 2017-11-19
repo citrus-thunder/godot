@@ -142,7 +142,7 @@ class ScriptEditorDebugger : public Control {
 	bool live_debug;
 
 	void _performance_draw();
-	void _performance_select(Object *, int, bool);
+	void _performance_select();
 	void _stack_dump_frame_selected();
 	void _output_clear();
 
@@ -150,7 +150,7 @@ class ScriptEditorDebugger : public Control {
 	void _scene_tree_selected();
 	void _scene_tree_request();
 	void _parse_message(const String &p_msg, const Array &p_data);
-	void _set_reason_text(const String &p_msg, MessageType p_type);
+	void _set_reason_text(const String &p_reason, MessageType p_type);
 	void _scene_tree_property_select_object(ObjectID p_object);
 	void _scene_tree_property_value_edited(const String &p_prop, const Variant &p_value);
 
@@ -165,9 +165,6 @@ class ScriptEditorDebugger : public Control {
 
 	void _method_changed(Object *p_base, const StringName &p_name, VARIANT_ARG_DECLARE);
 	void _property_changed(Object *p_base, const StringName &p_property, const Variant &p_value);
-
-	static void _method_changeds(void *p_ud, Object *p_base, const StringName &p_name, VARIANT_ARG_DECLARE);
-	static void _property_changeds(void *p_ud, Object *p_base, const StringName &p_property, const Variant &p_value);
 
 	void _error_selected(int p_idx);
 	void _error_stack_selected(int p_idx);
@@ -195,6 +192,9 @@ public:
 	String get_var_value(const String &p_var) const;
 
 	void set_live_debugging(bool p_enable);
+
+	static void _method_changeds(void *p_ud, Object *p_base, const StringName &p_name, VARIANT_ARG_DECLARE);
+	static void _property_changeds(void *p_ud, Object *p_base, const StringName &p_property, const Variant &p_value);
 
 	void live_debug_create_node(const NodePath &p_parent, const String &p_type, const String &p_name);
 	void live_debug_instance_node(const NodePath &p_parent, const String &p_path, const String &p_name);

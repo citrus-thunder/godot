@@ -32,9 +32,13 @@
 #include "errno.h"
 #include "key_mapping_x11.h"
 #include "print_string.h"
-#include "servers/physics/physics_server_sw.h"
 #include "servers/visual/visual_server_raster.h"
 #include "servers/visual/visual_server_wrap_mt.h"
+
+#ifdef HAVE_MNTENT
+#include <mntent.h>
+#endif
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -78,10 +82,6 @@ const char *OS_X11::get_video_driver_name(int p_driver) const {
 	return "GLES3";
 }
 
-OS::VideoMode OS_X11::get_default_video_mode() const {
-	return OS::VideoMode(1024, 600, false);
-}
-
 int OS_X11::get_audio_driver_count() const {
 	return AudioDriverManager::get_driver_count();
 }
@@ -91,6 +91,13 @@ const char *OS_X11::get_audio_driver_name(int p_driver) const {
 	AudioDriver *driver = AudioDriverManager::get_driver(p_driver);
 	ERR_FAIL_COND_V(!driver, "");
 	return AudioDriverManager::get_driver(p_driver)->get_name();
+}
+
+void OS_X11::initialize_core() {
+
+	crash_handler.initialize();
+
+	OS_Unix::initialize_core();
 }
 
 void OS_X11::initialize(const VideoMode &p_desired, int p_video_driver, int p_audio_driver) {
@@ -227,7 +234,7 @@ void OS_X11::initialize(const VideoMode &p_desired, int p_video_driver, int p_au
 
 // maybe contextgl wants to be in charge of creating the window
 //print_line("def videomode "+itos(current_videomode.width)+","+itos(current_videomode.height));
-#if defined(OPENGL_ENABLED) || defined(LEGACYGL_ENABLED)
+#if defined(OPENGL_ENABLED)
 
 	context_gl = memnew(ContextGL_X11(x11_display, x11_window, current_videomode, true));
 	context_gl->initialize();
@@ -306,29 +313,7 @@ void OS_X11::initialize(const VideoMode &p_desired, int p_video_driver, int p_au
 		XFree(xsh);
 	}
 
-	AudioDriverManager::get_driver(p_audio_driver)->set_singleton();
-
-	audio_driver_index = p_audio_driver;
-	if (AudioDriverManager::get_driver(p_audio_driver)->init() != OK) {
-
-		bool success = false;
-		audio_driver_index = -1;
-		for (int i = 0; i < AudioDriverManager::get_driver_count(); i++) {
-			if (i == p_audio_driver)
-				continue;
-			AudioDriverManager::get_driver(i)->set_singleton();
-			if (AudioDriverManager::get_driver(i)->init() == OK) {
-				success = true;
-				print_line("Audio Driver Failed: " + String(AudioDriverManager::get_driver(p_audio_driver)->get_name()));
-				print_line("Using alternate audio driver: " + String(AudioDriverManager::get_driver(i)->get_name()));
-				audio_driver_index = i;
-				break;
-			}
-		}
-		if (!success) {
-			ERR_PRINT("Initializing audio failed.");
-		}
-	}
+	AudioDriverManager::initialize(p_audio_driver);
 
 	ERR_FAIL_COND(!visual_server);
 	ERR_FAIL_COND(x11_window == 0);
@@ -472,12 +457,6 @@ void OS_X11::initialize(const VideoMode &p_desired, int p_video_driver, int p_au
 	requested = None;
 
 	visual_server->init();
-	//
-	physics_server = memnew(PhysicsServerSW);
-	physics_server->init();
-	//physics_2d_server = memnew( Physics2DServerSW );
-	physics_2d_server = Physics2DServerWrapMT::init_server<Physics2DServerSW>();
-	physics_2d_server->init();
 
 	input = memnew(InputDefault);
 
@@ -533,12 +512,6 @@ void OS_X11::finalize() {
 	memdelete(visual_server);
 	//memdelete(rasterizer);
 
-	physics_server->finish();
-	memdelete(physics_server);
-
-	physics_2d_server->finish();
-	memdelete(physics_2d_server);
-
 	memdelete(power_manager);
 
 	if (xrandr_handle)
@@ -547,7 +520,7 @@ void OS_X11::finalize() {
 	XUnmapWindow(x11_display, x11_window);
 	XDestroyWindow(x11_display, x11_window);
 
-#if defined(OPENGL_ENABLED) || defined(LEGACYGL_ENABLED)
+#if defined(OPENGL_ENABLED)
 	memdelete(context_gl);
 #endif
 	for (int i = 0; i < CURSOR_MAX; i++) {
@@ -628,7 +601,7 @@ void OS_X11::set_mouse_mode(MouseMode p_mode) {
 	XFlush(x11_display);
 }
 
-void OS_X11::warp_mouse_pos(const Point2 &p_to) {
+void OS_X11::warp_mouse_position(const Point2 &p_to) {
 
 	if (mouse_mode == MOUSE_MODE_CAPTURED) {
 
@@ -722,6 +695,16 @@ void OS_X11::set_wm_fullscreen(bool p_enabled) {
 
 		XSetWMNormalHints(x11_display, x11_window, xsh);
 		XFree(xsh);
+	}
+
+	if (!p_enabled && !get_borderless_window()) {
+		// put decorations back if the window wasn't suppoesed to be borderless
+		Hints hints;
+		Atom property;
+		hints.flags = 2;
+		hints.decorations = 1;
+		property = XInternAtom(x11_display, "_MOTIF_WM_HINTS", True);
+		XChangeProperty(x11_display, x11_window, property, property, 32, PropModeReplace, (unsigned char *)&hints, 5);
 	}
 }
 
@@ -1943,7 +1926,7 @@ Error OS_X11::shell_open(String p_uri) {
 	Error ok;
 	List<String> args;
 	args.push_back(p_uri);
-	ok = execute("/usr/bin/xdg-open", args, false);
+	ok = execute("xdg-open", args, false);
 	if (ok == OK)
 		return OK;
 	ok = execute("gnome-open", args, false);
@@ -2007,7 +1990,7 @@ String OS_X11::get_system_dir(SystemDir p_dir) const {
 	String pipe;
 	List<String> arg;
 	arg.push_back(xdgparam);
-	Error err = const_cast<OS_X11 *>(this)->execute("/usr/bin/xdg-user-dir", arg, true, NULL, &pipe);
+	Error err = const_cast<OS_X11 *>(this)->execute("xdg-user-dir", arg, true, NULL, &pipe);
 	if (err != OK)
 		return ".";
 	return pipe.strip_edges();
@@ -2057,7 +2040,7 @@ void OS_X11::alert(const String &p_alert, const String &p_title) {
 	args.push_back(p_title);
 	args.push_back(p_alert);
 
-	execute("/usr/bin/xmessage", args, true);
+	execute("xmessage", args, true);
 }
 
 void OS_X11::set_icon(const Ref<Image> &p_icon) {
@@ -2160,7 +2143,7 @@ void OS_X11::set_context(int p_context) {
 	}
 }
 
-PowerState OS_X11::get_power_state() {
+OS::PowerState OS_X11::get_power_state() {
 	return power_manager->get_power_state();
 }
 
@@ -2172,11 +2155,120 @@ int OS_X11::get_power_percent_left() {
 	return power_manager->get_power_percent_left();
 }
 
-OS_X11::OS_X11() {
+void OS_X11::disable_crash_handler() {
+	crash_handler.disable();
+}
 
-#ifdef RTAUDIO_ENABLED
-	AudioDriverManager::add_driver(&driver_rtaudio);
+bool OS_X11::is_disable_crash_handler() const {
+	return crash_handler.is_disabled();
+}
+
+static String get_mountpoint(const String &p_path) {
+	struct stat s;
+	if (stat(p_path.utf8().get_data(), &s)) {
+		return "";
+	}
+
+#ifdef HAVE_MNTENT
+	dev_t dev = s.st_dev;
+	FILE *fd = setmntent("/proc/mounts", "r");
+	if (!fd) {
+		return "";
+	}
+
+	struct mntent mnt;
+	char buf[1024];
+	size_t buflen = 1024;
+	while (getmntent_r(fd, &mnt, buf, buflen)) {
+		if (!stat(mnt.mnt_dir, &s) && s.st_dev == dev) {
+			endmntent(fd);
+			return String(mnt.mnt_dir);
+		}
+	}
+
+	endmntent(fd);
 #endif
+	return "";
+}
+
+Error OS_X11::move_to_trash(const String &p_path) {
+	String trashcan = "";
+	String mnt = get_mountpoint(p_path);
+
+	if (mnt != "") {
+		String path(mnt + "/.Trash-" + itos(getuid()) + "/files");
+		struct stat s;
+		if (!stat(path.utf8().get_data(), &s)) {
+			trashcan = path;
+		}
+	}
+
+	if (trashcan == "") {
+		char *dhome = getenv("XDG_DATA_HOME");
+		if (dhome) {
+			trashcan = String(dhome) + "/Trash/files";
+		}
+	}
+
+	if (trashcan == "") {
+		char *home = getenv("HOME");
+		if (home) {
+			trashcan = String(home) + "/.local/share/Trash/files";
+		}
+	}
+
+	if (trashcan == "") {
+		ERR_PRINTS("move_to_trash: Could not determine trashcan location");
+		return FAILED;
+	}
+
+	List<String> args;
+	args.push_back("-p");
+	args.push_back(trashcan);
+	Error err = execute("mkdir", args, true);
+	if (err == OK) {
+		List<String> args2;
+		args2.push_back(p_path);
+		args2.push_back(trashcan);
+		err = execute("mv", args2, true);
+	}
+
+	return err;
+}
+
+OS::LatinKeyboardVariant OS_X11::get_latin_keyboard_variant() const {
+
+	XkbDescRec *xkbdesc = XkbAllocKeyboard();
+	ERR_FAIL_COND_V(!xkbdesc, LATIN_KEYBOARD_QWERTY);
+
+	XkbGetNames(x11_display, XkbSymbolsNameMask, xkbdesc);
+	ERR_FAIL_COND_V(!xkbdesc->names, LATIN_KEYBOARD_QWERTY);
+	ERR_FAIL_COND_V(!xkbdesc->names->symbols, LATIN_KEYBOARD_QWERTY);
+
+	char *layout = XGetAtomName(x11_display, xkbdesc->names->symbols);
+	ERR_FAIL_COND_V(!layout, LATIN_KEYBOARD_QWERTY);
+
+	Vector<String> info = String(layout).split("+");
+	ERR_FAIL_INDEX_V(1, info.size(), LATIN_KEYBOARD_QWERTY);
+
+	if (info[1].find("colemak") != -1) {
+		return LATIN_KEYBOARD_COLEMAK;
+	} else if (info[1].find("qwertz") != -1) {
+		return LATIN_KEYBOARD_QWERTZ;
+	} else if (info[1].find("azerty") != -1) {
+		return LATIN_KEYBOARD_AZERTY;
+	} else if (info[1].find("qzerty") != -1) {
+		return LATIN_KEYBOARD_QZERTY;
+	} else if (info[1].find("dvorak") != -1) {
+		return LATIN_KEYBOARD_DVORAK;
+	} else if (info[1].find("neo") != -1) {
+		return LATIN_KEYBOARD_NEO;
+	}
+
+	return LATIN_KEYBOARD_QWERTY;
+}
+
+OS_X11::OS_X11() {
 
 #ifdef PULSEAUDIO_ENABLED
 	AudioDriverManager::add_driver(&driver_pulseaudio);
@@ -2185,11 +2277,6 @@ OS_X11::OS_X11() {
 #ifdef ALSA_ENABLED
 	AudioDriverManager::add_driver(&driver_alsa);
 #endif
-
-	if (AudioDriverManager::get_driver_count() == 0) {
-		WARN_PRINT("No sound driver found... Defaulting to dummy driver");
-		AudioDriverManager::add_driver(&driver_dummy);
-	}
 
 	minimized = false;
 	xim_style = 0L;

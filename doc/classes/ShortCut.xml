@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<class name="ShortCut" inherits="Resource" category="Core" version="3.0.alpha.custom_build">
+<class name="ShortCut" inherits="Resource" category="Core" version="3.0-alpha">
 	<brief_description>
 	</brief_description>
 	<description>
@@ -45,7 +45,7 @@
 		</method>
 	</methods>
 	<members>
-		<member name="shortcut" type="InputEvent" setter="set_shortcut" getter="get_shortcut" brief="">
+		<member name="shortcut" type="InputEvent" setter="set_shortcut" getter="get_shortcut">
 		</member>
 	</members>
 	<constants>

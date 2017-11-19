@@ -113,7 +113,7 @@ public:
 	void set_shadow_reverse_cull_face(bool p_enable);
 	bool get_shadow_reverse_cull_face() const;
 
-	virtual Rect3 get_aabb() const;
+	virtual AABB get_aabb() const;
 	virtual PoolVector<Face3> get_faces(uint32_t p_usage_flags) const;
 
 	Light();
@@ -150,7 +150,7 @@ public:
 	void set_shadow_mode(ShadowMode p_mode);
 	ShadowMode get_shadow_mode() const;
 
-	void set_shadow_depth_range(ShadowDepthRange p_mode);
+	void set_shadow_depth_range(ShadowDepthRange p_range);
 	ShadowDepthRange get_shadow_depth_range() const;
 
 	void set_blend_splits(bool p_enable);

@@ -191,6 +191,7 @@ public class Godot extends Activity implements SensorEventListener, IDownloaderC
 		protected void onMainPause() {}
 		protected void onMainResume() {}
 		protected void onMainDestroy() {}
+		protected boolean onMainBackPressed() { return false; }
 
 		protected void onGLDrawFrame(GL10 gl) {}
 		protected void onGLSurfaceChanged(GL10 gl, int width, int height) {} // singletons will always miss first onGLSurfaceChanged call
@@ -218,6 +219,7 @@ public class Godot extends Activity implements SensorEventListener, IDownloaderC
 
 	private SensorManager mSensorManager;
 	private Sensor mAccelerometer;
+	private Sensor mGravity;
 	private Sensor mMagnetometer;
 	private Sensor mGyroscope;
 
@@ -276,6 +278,21 @@ public class Godot extends Activity implements SensorEventListener, IDownloaderC
 		layout.addView(mView,new LayoutParams(LayoutParams.FILL_PARENT,LayoutParams.FILL_PARENT));
 		edittext.setView(mView);
 		io.setEdit(edittext);
+
+		final Godot godot = this;
+		mView.getViewTreeObserver().addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
+				@Override
+				public void onGlobalLayout() {
+					Point fullSize = new Point();
+					godot.getWindowManager().getDefaultDisplay().getSize(fullSize);
+					Rect gameSize = new Rect();
+					godot.mView.getWindowVisibleDisplayFrame(gameSize);
+
+					final int keyboardHeight = fullSize.y - gameSize.bottom;
+					Log.d("GODOT", "setVirtualKeyboardHeight: " + keyboardHeight);
+					GodotLib.setVirtualKeyboardHeight(keyboardHeight);
+				}
+		});
 
 		// Ad layout
 		adLayout = new RelativeLayout(this);
@@ -419,6 +436,8 @@ public class Godot extends Activity implements SensorEventListener, IDownloaderC
 		mSensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
 		mAccelerometer = mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
 		mSensorManager.registerListener(this, mAccelerometer, SensorManager.SENSOR_DELAY_GAME);
+		mGravity = mSensorManager.getDefaultSensor(Sensor.TYPE_GRAVITY);
+		mSensorManager.registerListener(this, mGravity, SensorManager.SENSOR_DELAY_GAME);
 		mMagnetometer = mSensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
 		mSensorManager.registerListener(this, mMagnetometer, SensorManager.SENSOR_DELAY_GAME);
 		mGyroscope = mSensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE);
@@ -651,6 +670,7 @@ public class Godot extends Activity implements SensorEventListener, IDownloaderC
 			}
 		});
 		mSensorManager.registerListener(this, mAccelerometer, SensorManager.SENSOR_DELAY_GAME);
+		mSensorManager.registerListener(this, mGravity, SensorManager.SENSOR_DELAY_GAME);
 		mSensorManager.registerListener(this, mMagnetometer, SensorManager.SENSOR_DELAY_GAME);
 		mSensorManager.registerListener(this, mGyroscope, SensorManager.SENSOR_DELAY_GAME);
 
@@ -718,13 +738,16 @@ public class Godot extends Activity implements SensorEventListener, IDownloaderC
 				@Override
 				public void run() {
 					if (typeOfSensor == Sensor.TYPE_ACCELEROMETER) {
-						GodotLib.accelerometer(x,y,z);
+						GodotLib.accelerometer(-x,y,-z);
+					}
+					if (typeOfSensor == Sensor.TYPE_GRAVITY) {
+						GodotLib.gravity(-x,y,-z);
 					}
 					if (typeOfSensor == Sensor.TYPE_MAGNETIC_FIELD) {
-						GodotLib.magnetometer(x,y,z);
+						GodotLib.magnetometer(-x,y,-z);
 					}
 					if (typeOfSensor == Sensor.TYPE_GYROSCOPE) {
-						GodotLib.gyroscope(x,y,z);
+						GodotLib.gyroscope(x,-y,z);
 					}
 				}
 			});
@@ -752,9 +775,16 @@ public class Godot extends Activity implements SensorEventListener, IDownloaderC
 */
 
 	@Override public void onBackPressed() {
+		boolean shouldQuit = true;
+
+		for(int i=0;i<singleton_count;i++) {
+			if (singletons[i].onMainBackPressed()) {
+				shouldQuit = false;
+			}
+		}
 
 		System.out.printf("** BACK REQUEST!\n");
-		if (mView != null) {
+		if (shouldQuit && mView != null) {
 			mView.queueEvent(new Runnable() {
 				@Override
 				public void run() {

@@ -117,24 +117,24 @@ bool Light::get_shadow_reverse_cull_face() const {
 	return reverse_cull;
 }
 
-Rect3 Light::get_aabb() const {
+AABB Light::get_aabb() const {
 
 	if (type == VisualServer::LIGHT_DIRECTIONAL) {
 
-		return Rect3(Vector3(-1, -1, -1), Vector3(2, 2, 2));
+		return AABB(Vector3(-1, -1, -1), Vector3(2, 2, 2));
 
 	} else if (type == VisualServer::LIGHT_OMNI) {
 
-		return Rect3(Vector3(-1, -1, -1) * param[PARAM_RANGE], Vector3(2, 2, 2) * param[PARAM_RANGE]);
+		return AABB(Vector3(-1, -1, -1) * param[PARAM_RANGE], Vector3(2, 2, 2) * param[PARAM_RANGE]);
 
 	} else if (type == VisualServer::LIGHT_SPOT) {
 
 		float len = param[PARAM_RANGE];
 		float size = Math::tan(Math::deg2rad(param[PARAM_SPOT_ANGLE])) * len;
-		return Rect3(Vector3(-size, -size, -len), Vector3(size * 2, size * 2, len));
+		return AABB(Vector3(-size, -size, -len), Vector3(size * 2, size * 2, len));
 	}
 
-	return Rect3();
+	return AABB();
 }
 
 PoolVector<Face3> Light::get_faces(uint32_t p_usage_flags) const {
@@ -248,14 +248,20 @@ void Light::_bind_methods() {
 	BIND_ENUM_CONSTANT(PARAM_SHADOW_SPLIT_3_OFFSET);
 	BIND_ENUM_CONSTANT(PARAM_SHADOW_NORMAL_BIAS);
 	BIND_ENUM_CONSTANT(PARAM_SHADOW_BIAS);
-
+	BIND_ENUM_CONSTANT(PARAM_SHADOW_BIAS_SPLIT_SCALE);
 	BIND_ENUM_CONSTANT(PARAM_MAX);
 }
 
 Light::Light(VisualServer::LightType p_type) {
 
 	type = p_type;
-	light = VisualServer::get_singleton()->light_create(p_type);
+	switch (p_type) {
+		case VS::LIGHT_DIRECTIONAL: light = VisualServer::get_singleton()->directional_light_create(); break;
+		case VS::LIGHT_OMNI: light = VisualServer::get_singleton()->omni_light_create(); break;
+		case VS::LIGHT_SPOT: light = VisualServer::get_singleton()->spot_light_create(); break;
+		default: {};
+	}
+
 	VS::get_singleton()->instance_set_base(get_instance(), light);
 
 	reverse_cull = false;
@@ -405,6 +411,12 @@ void OmniLight::_bind_methods() {
 	ADD_PROPERTYI(PropertyInfo(Variant::REAL, "omni_attenuation", PROPERTY_HINT_EXP_EASING), "set_param", "get_param", PARAM_ATTENUATION);
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "omni_shadow_mode", PROPERTY_HINT_ENUM, "Dual Paraboloid,Cube"), "set_shadow_mode", "get_shadow_mode");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "omni_shadow_detail", PROPERTY_HINT_ENUM, "Vertical,Horizontal"), "set_shadow_detail", "get_shadow_detail");
+
+	BIND_ENUM_CONSTANT(SHADOW_DUAL_PARABOLOID);
+	BIND_ENUM_CONSTANT(SHADOW_CUBE);
+
+	BIND_ENUM_CONSTANT(SHADOW_DETAIL_VERTICAL);
+	BIND_ENUM_CONSTANT(SHADOW_DETAIL_HORIZONTAL);
 }
 
 OmniLight::OmniLight()

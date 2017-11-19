@@ -28,7 +28,9 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
 #include "physics_2d_server.h"
+#include "core/project_settings.h"
 #include "print_string.h"
+
 Physics2DServer *Physics2DServer::singleton = NULL;
 
 void Physics2DDirectBodyState::integrate_forces() {
@@ -92,16 +94,16 @@ void Physics2DDirectBodyState::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("get_contact_count"), &Physics2DDirectBodyState::get_contact_count);
 
-	ClassDB::bind_method(D_METHOD("get_contact_local_pos", "contact_idx"), &Physics2DDirectBodyState::get_contact_local_pos);
+	ClassDB::bind_method(D_METHOD("get_contact_local_position", "contact_idx"), &Physics2DDirectBodyState::get_contact_local_position);
 	ClassDB::bind_method(D_METHOD("get_contact_local_normal", "contact_idx"), &Physics2DDirectBodyState::get_contact_local_normal);
 	ClassDB::bind_method(D_METHOD("get_contact_local_shape", "contact_idx"), &Physics2DDirectBodyState::get_contact_local_shape);
 	ClassDB::bind_method(D_METHOD("get_contact_collider", "contact_idx"), &Physics2DDirectBodyState::get_contact_collider);
-	ClassDB::bind_method(D_METHOD("get_contact_collider_pos", "contact_idx"), &Physics2DDirectBodyState::get_contact_collider_pos);
+	ClassDB::bind_method(D_METHOD("get_contact_collider_position", "contact_idx"), &Physics2DDirectBodyState::get_contact_collider_position);
 	ClassDB::bind_method(D_METHOD("get_contact_collider_id", "contact_idx"), &Physics2DDirectBodyState::get_contact_collider_id);
 	ClassDB::bind_method(D_METHOD("get_contact_collider_object", "contact_idx"), &Physics2DDirectBodyState::get_contact_collider_object);
 	ClassDB::bind_method(D_METHOD("get_contact_collider_shape", "contact_idx"), &Physics2DDirectBodyState::get_contact_collider_shape);
 	ClassDB::bind_method(D_METHOD("get_contact_collider_shape_metadata", "contact_idx"), &Physics2DDirectBodyState::get_contact_collider_shape_metadata);
-	ClassDB::bind_method(D_METHOD("get_contact_collider_velocity_at_pos", "contact_idx"), &Physics2DDirectBodyState::get_contact_collider_velocity_at_pos);
+	ClassDB::bind_method(D_METHOD("get_contact_collider_velocity_at_position", "contact_idx"), &Physics2DDirectBodyState::get_contact_collider_velocity_at_position);
 	ClassDB::bind_method(D_METHOD("get_step"), &Physics2DDirectBodyState::get_step);
 	ClassDB::bind_method(D_METHOD("integrate_forces"), &Physics2DDirectBodyState::integrate_forces);
 	ClassDB::bind_method(D_METHOD("get_space_state"), &Physics2DDirectBodyState::get_space_state);
@@ -358,8 +360,8 @@ void Physics2DDirectSpaceState::_bind_methods() {
 	BIND_ENUM_CONSTANT(TYPE_MASK_KINEMATIC_BODY);
 	BIND_ENUM_CONSTANT(TYPE_MASK_RIGID_BODY);
 	BIND_ENUM_CONSTANT(TYPE_MASK_CHARACTER_BODY);
-	BIND_ENUM_CONSTANT(TYPE_MASK_AREA);
 	BIND_ENUM_CONSTANT(TYPE_MASK_COLLISION);
+	BIND_ENUM_CONSTANT(TYPE_MASK_AREA);
 }
 
 int Physics2DShapeQueryResult::get_result_count() const {
@@ -473,7 +475,15 @@ bool Physics2DServer::_body_test_motion(RID p_body, const Transform2D &p_from, c
 
 void Physics2DServer::_bind_methods() {
 
-	ClassDB::bind_method(D_METHOD("shape_create", "type"), &Physics2DServer::shape_create);
+	ClassDB::bind_method(D_METHOD("line_shape_create"), &Physics2DServer::line_shape_create);
+	ClassDB::bind_method(D_METHOD("ray_shape_create"), &Physics2DServer::ray_shape_create);
+	ClassDB::bind_method(D_METHOD("segment_shape_create"), &Physics2DServer::segment_shape_create);
+	ClassDB::bind_method(D_METHOD("circle_shape_create"), &Physics2DServer::circle_shape_create);
+	ClassDB::bind_method(D_METHOD("rectangle_shape_create"), &Physics2DServer::rectangle_shape_create);
+	ClassDB::bind_method(D_METHOD("capsule_shape_create"), &Physics2DServer::capsule_shape_create);
+	ClassDB::bind_method(D_METHOD("convex_polygon_shape_create"), &Physics2DServer::convex_polygon_shape_create);
+	ClassDB::bind_method(D_METHOD("concave_polygon_shape_create"), &Physics2DServer::concave_polygon_shape_create);
+
 	ClassDB::bind_method(D_METHOD("shape_set_data", "shape", "data"), &Physics2DServer::shape_set_data);
 
 	ClassDB::bind_method(D_METHOD("shape_get_type", "shape"), &Physics2DServer::shape_get_type);
@@ -519,7 +529,7 @@ void Physics2DServer::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("area_set_monitor_callback", "area", "receiver", "method"), &Physics2DServer::area_set_monitor_callback);
 
-	ClassDB::bind_method(D_METHOD("body_create", "mode", "init_sleeping"), &Physics2DServer::body_create, DEFVAL(BODY_MODE_RIGID), DEFVAL(false));
+	ClassDB::bind_method(D_METHOD("body_create"), &Physics2DServer::body_create);
 
 	ClassDB::bind_method(D_METHOD("body_set_space", "body", "space"), &Physics2DServer::body_set_space);
 	ClassDB::bind_method(D_METHOD("body_get_space", "body"), &Physics2DServer::body_get_space);
@@ -561,7 +571,7 @@ void Physics2DServer::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("body_set_state", "body", "state", "value"), &Physics2DServer::body_set_state);
 	ClassDB::bind_method(D_METHOD("body_get_state", "body", "state"), &Physics2DServer::body_get_state);
 
-	ClassDB::bind_method(D_METHOD("body_apply_impulse", "body", "pos", "impulse"), &Physics2DServer::body_apply_impulse);
+	ClassDB::bind_method(D_METHOD("body_apply_impulse", "body", "position", "impulse"), &Physics2DServer::body_apply_impulse);
 	ClassDB::bind_method(D_METHOD("body_add_force", "body", "offset", "force"), &Physics2DServer::body_add_force);
 	ClassDB::bind_method(D_METHOD("body_set_axis_velocity", "body", "axis_velocity"), &Physics2DServer::body_set_axis_velocity);
 
@@ -578,6 +588,8 @@ void Physics2DServer::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("body_set_force_integration_callback", "body", "receiver", "method", "userdata"), &Physics2DServer::body_set_force_integration_callback, DEFVAL(Variant()));
 
 	ClassDB::bind_method(D_METHOD("body_test_motion", "body", "from", "motion", "margin", "result"), &Physics2DServer::_body_test_motion, DEFVAL(0.08), DEFVAL(Variant()));
+
+	ClassDB::bind_method(D_METHOD("body_get_direct_state", "body"), &Physics2DServer::body_get_direct_state);
 
 	/* JOINT API */
 
@@ -613,6 +625,7 @@ void Physics2DServer::_bind_methods() {
 	BIND_ENUM_CONSTANT(SPACE_PARAM_CONSTRAINT_DEFAULT_BIAS);
 
 	BIND_ENUM_CONSTANT(SHAPE_LINE);
+	BIND_ENUM_CONSTANT(SHAPE_RAY);
 	BIND_ENUM_CONSTANT(SHAPE_SEGMENT);
 	BIND_ENUM_CONSTANT(SHAPE_CIRCLE);
 	BIND_ENUM_CONSTANT(SHAPE_RECTANGLE);
@@ -688,4 +701,69 @@ Physics2DServer::Physics2DServer() {
 Physics2DServer::~Physics2DServer() {
 
 	singleton = NULL;
+}
+
+Vector<Physics2DServerManager::ClassInfo> Physics2DServerManager::physics_2d_servers;
+int Physics2DServerManager::default_server_id = -1;
+int Physics2DServerManager::default_server_priority = -1;
+const String Physics2DServerManager::setting_property_name("physics/2d/physics_engine");
+
+void Physics2DServerManager::on_servers_changed() {
+
+	String physics_servers("DEFAULT");
+	for (int i = get_servers_count() - 1; 0 <= i; --i) {
+		physics_servers += "," + get_server_name(i);
+	}
+	ProjectSettings::get_singleton()->set_custom_property_info(setting_property_name, PropertyInfo(Variant::STRING, setting_property_name, PROPERTY_HINT_ENUM, physics_servers));
+}
+
+void Physics2DServerManager::register_server(const String &p_name, CreatePhysics2DServerCallback p_creat_callback) {
+
+	ERR_FAIL_COND(!p_creat_callback);
+	ERR_FAIL_COND(find_server_id(p_name) != -1);
+	physics_2d_servers.push_back(ClassInfo(p_name, p_creat_callback));
+	on_servers_changed();
+}
+
+void Physics2DServerManager::set_default_server(const String &p_name, int p_priority) {
+
+	const int id = find_server_id(p_name);
+	ERR_FAIL_COND(id == -1); // Not found
+	if (default_server_priority < p_priority) {
+		default_server_id = id;
+		default_server_priority = p_priority;
+	}
+}
+
+int Physics2DServerManager::find_server_id(const String &p_name) {
+
+	for (int i = physics_2d_servers.size() - 1; 0 <= i; --i) {
+		if (p_name == physics_2d_servers[i].name) {
+			return i;
+		}
+	}
+	return -1;
+}
+
+int Physics2DServerManager::get_servers_count() {
+	return physics_2d_servers.size();
+}
+
+String Physics2DServerManager::get_server_name(int p_id) {
+	ERR_FAIL_INDEX_V(p_id, get_servers_count(), "");
+	return physics_2d_servers[p_id].name;
+}
+
+Physics2DServer *Physics2DServerManager::new_default_server() {
+	ERR_FAIL_COND_V(default_server_id == -1, NULL);
+	return physics_2d_servers[default_server_id].create_callback();
+}
+
+Physics2DServer *Physics2DServerManager::new_server(const String &p_name) {
+	int id = find_server_id(p_name);
+	if (id == -1) {
+		return NULL;
+	} else {
+		return physics_2d_servers[id].create_callback();
+	}
 }

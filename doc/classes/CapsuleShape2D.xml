@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<class name="CapsuleShape2D" inherits="Shape2D" category="Core" version="3.0.alpha.custom_build">
+<class name="CapsuleShape2D" inherits="Shape2D" category="Core" version="3.0-alpha">
 	<brief_description>
-		Capsule 2D shape resource for physics.
+		Capsule shape for 2D collisions.
 	</brief_description>
 	<description>
-		Capsule 2D shape resource for physics. A capsule (or sometimes called "pill") is like a line grown in all directions. It has a radius and a height, and is often useful for modeling biped characters.
+		Capsule shape for 2D collisions.
 	</description>
 	<tutorials>
 	</tutorials>
@@ -15,14 +15,14 @@
 			<return type="float">
 			</return>
 			<description>
-				Return the height of the [CapsuleShape2D].
+				Return the height of the [code]CapsuleShape2D[/code].
 			</description>
 		</method>
 		<method name="get_radius" qualifiers="const">
 			<return type="float">
 			</return>
 			<description>
-				Return the radius of the [CapsuleShape2D].
+				Return the radius of the [code]CapsuleShape2D[/code].
 			</description>
 		</method>
 		<method name="set_height">
@@ -31,7 +31,7 @@
 			<argument index="0" name="height" type="float">
 			</argument>
 			<description>
-				Set the height of the [CapsuleShape2D].
+				Set the height of the [code]CapsuleShape2D[/code].
 			</description>
 		</method>
 		<method name="set_radius">
@@ -40,14 +40,16 @@
 			<argument index="0" name="radius" type="float">
 			</argument>
 			<description>
-				Set the radius of the [CapsuleShape2D].
+				Set the radius of the [code]CapsuleShape2D[/code].
 			</description>
 		</method>
 	</methods>
 	<members>
-		<member name="height" type="float" setter="set_height" getter="get_height" brief="">
+		<member name="height" type="float" setter="set_height" getter="get_height">
+			The capsule's height.
 		</member>
-		<member name="radius" type="float" setter="set_radius" getter="get_radius" brief="">
+		<member name="radius" type="float" setter="set_radius" getter="get_radius">
+			The capsules's radius.
 		</member>
 	</members>
 	<constants>

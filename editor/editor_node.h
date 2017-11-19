@@ -30,6 +30,7 @@
 #ifndef EDITOR_NODE_H
 #define EDITOR_NODE_H
 
+#include "core/print_string.h"
 #include "editor/connections_dialog.h"
 #include "editor/create_dialog.h"
 #include "editor/editor_about.h"
@@ -262,6 +263,9 @@ private:
 	Button *property_forward;
 	SceneTreeDock *scene_tree_dock;
 	PropertyEditor *property_editor;
+	Button *property_editable_warning;
+	AcceptDialog *property_editable_warning_dialog;
+	void _property_editable_warning_pressed();
 	NodeDock *node_dock;
 	ImportDock *import_dock;
 	VBoxContainer *prop_editor_vb;
@@ -291,10 +295,10 @@ private:
 	ProjectSettingsEditor *project_settings;
 	EditorFileDialog *file;
 	ExportTemplateManager *export_template_manager;
-	FileDialog *file_templates;
-	FileDialog *file_export;
-	FileDialog *file_export_lib;
-	FileDialog *file_script;
+	EditorFileDialog *file_templates;
+	EditorFileDialog *file_export;
+	EditorFileDialog *file_export_lib;
+	EditorFileDialog *file_script;
 	CheckButton *file_export_lib_merge;
 	LineEdit *file_export_password;
 	String current_path;
@@ -500,7 +504,7 @@ private:
 	void _mark_unsaved_scenes();
 
 	void _find_node_types(Node *p_node, int &count_2d, int &count_3d);
-	void _save_scene_with_preview(String p_file);
+	void _save_scene_with_preview(String p_file, int p_idx = -1);
 
 	Map<String, Set<String> > dependency_errors;
 
@@ -602,9 +606,13 @@ private:
 
 	void _start_dimming(bool p_dimming);
 	void _dim_timeout();
-	void _check_gui_base_size();
 
 	void _license_tree_selected();
+
+	Vector<Ref<EditorResourceConversionPlugin> > resource_conversion_plugins;
+
+	PrintHandlerList print_handler;
+	static void _print_handler(void *p_this, const String &p_string, bool p_error);
 
 protected:
 	void _notification(int p_what);
@@ -712,7 +720,7 @@ public:
 
 	void show_warning(const String &p_text, const String &p_title = "Warning!");
 
-	Error export_preset(const String &p_platform, const String &p_path, bool p_debug, const String &p_password, bool p_quit_after = false);
+	Error export_preset(const String &p_preset, const String &p_path, bool p_debug, const String &p_password, bool p_quit_after = false);
 
 	static void register_editor_types();
 	static void unregister_editor_types();
@@ -761,8 +769,7 @@ public:
 	void remove_bottom_panel_item(Control *p_item);
 
 	Variant drag_resource(const Ref<Resource> &p_res, Control *p_from);
-	Variant drag_files(const Vector<String> &p_files, Control *p_from);
-	Variant drag_files_and_dirs(const Vector<String> &p_files, Control *p_from);
+	Variant drag_files_and_dirs(const Vector<String> &p_paths, Control *p_from);
 
 	void add_tool_menu_item(const String &p_name, Object *p_handler, const String &p_callback, const Variant &p_ud = Variant());
 	void add_tool_submenu_item(const String &p_name, PopupMenu *p_submenu);
@@ -773,6 +780,10 @@ public:
 	EditorNode();
 	~EditorNode();
 	void get_singleton(const char *arg1, bool arg2);
+
+	void add_resource_conversion_plugin(const Ref<EditorResourceConversionPlugin> &p_plugin);
+	void remove_resource_conversion_plugin(const Ref<EditorResourceConversionPlugin> &p_plugin);
+	Vector<Ref<EditorResourceConversionPlugin> > find_resource_conversion_plugin(const Ref<Resource> &p_for_resource);
 
 	static void add_init_callback(EditorNodeInitCallback p_callback) { _init_callbacks.push_back(p_callback); }
 	static void add_build_callback(EditorBuildCallback p_callback);
@@ -804,9 +815,9 @@ public:
 
 	void make_visible(bool p_visible);
 	void edit(Object *p_object);
-	bool forward_gui_input(const Transform2D &p_canvas_xform, const Ref<InputEvent> &p_event);
+	bool forward_gui_input(const Ref<InputEvent> &p_event);
 	bool forward_spatial_gui_input(Camera *p_camera, const Ref<InputEvent> &p_event, bool serve_when_force_input_enabled);
-	void forward_draw_over_canvas(const Transform2D &p_canvas_xform, Control *p_canvas);
+	void forward_draw_over_canvas(Control *p_canvas);
 	void add_plugin(EditorPlugin *p_plugin);
 	void clear();
 	bool empty();

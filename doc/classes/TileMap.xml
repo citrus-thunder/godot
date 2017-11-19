@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<class name="TileMap" inherits="Node2D" category="Core" version="3.0.alpha.custom_build">
+<class name="TileMap" inherits="Node2D" category="Core" version="3.0-alpha">
 	<brief_description>
 		Node for 2D tile-based maps.
 	</brief_description>
@@ -39,7 +39,7 @@
 		<method name="get_cellv" qualifiers="const">
 			<return type="int">
 			</return>
-			<argument index="0" name="pos" type="Vector2">
+			<argument index="0" name="position" type="Vector2">
 			</argument>
 			<description>
 				Return the tile index of the cell referenced by a Vector2.
@@ -57,6 +57,12 @@
 			</return>
 			<description>
 				Return true if tiles are to be centered in y coordinate (by default this is false and they are drawn from upper left cell corner).
+			</description>
+		</method>
+		<method name="get_clip_uv" qualifiers="const">
+			<return type="bool">
+			</return>
+			<description>
 			</description>
 		</method>
 		<method name="get_collision_bounce" qualifiers="const">
@@ -222,7 +228,7 @@
 		<method name="map_to_world" qualifiers="const">
 			<return type="Vector2">
 			</return>
-			<argument index="0" name="mappos" type="Vector2">
+			<argument index="0" name="map_position" type="Vector2">
 			</argument>
 			<argument index="1" name="ignore_half_ofs" type="bool" default="false">
 			</argument>
@@ -264,7 +270,7 @@
 		<method name="set_cellv">
 			<return type="void">
 			</return>
-			<argument index="0" name="pos" type="Vector2">
+			<argument index="0" name="position" type="Vector2">
 			</argument>
 			<argument index="1" name="tile" type="int">
 			</argument>
@@ -296,6 +302,14 @@
 			</argument>
 			<description>
 				Set tiles to be centered in y coordinate. (by default this is false and they are drawn from upper left cell corner).
+			</description>
+		</method>
+		<method name="set_clip_uv">
+			<return type="void">
+			</return>
+			<argument index="0" name="enable" type="bool">
+			</argument>
+			<description>
 			</description>
 		</method>
 		<method name="set_collision_bounce">
@@ -442,7 +456,7 @@
 		<method name="world_to_map" qualifiers="const">
 			<return type="Vector2">
 			</return>
-			<argument index="0" name="worldpos" type="Vector2">
+			<argument index="0" name="world_position" type="Vector2">
 			</argument>
 			<description>
 				Return the tilemap (grid-based) coordinates corresponding to the absolute world position given as an argument.
@@ -450,49 +464,51 @@
 		</method>
 	</methods>
 	<members>
-		<member name="cell_custom_transform" type="Transform2D" setter="set_custom_transform" getter="get_custom_transform" brief="">
+		<member name="cell_clip_uv" type="bool" setter="set_clip_uv" getter="get_clip_uv">
+		</member>
+		<member name="cell_custom_transform" type="Transform2D" setter="set_custom_transform" getter="get_custom_transform">
 			The custom [Transform2D] to be applied to the TileMap's cells.
 		</member>
-		<member name="cell_half_offset" type="int" setter="set_half_offset" getter="get_half_offset" brief="" enum="TileMap.HalfOffset">
+		<member name="cell_half_offset" type="int" setter="set_half_offset" getter="get_half_offset" enum="TileMap.HalfOffset">
 			Amount to offset alternating tiles. Uses HALF_OFFSET_* constants. Default value: HALF_OFFSET_DISABLED.
 		</member>
-		<member name="cell_quadrant_size" type="int" setter="set_quadrant_size" getter="get_quadrant_size" brief="">
+		<member name="cell_quadrant_size" type="int" setter="set_quadrant_size" getter="get_quadrant_size">
 			The TileMap's quadrant size.  Optimizes drawing by batching, using chunks of this size. Default value: 16.
 		</member>
-		<member name="cell_size" type="Vector2" setter="set_cell_size" getter="get_cell_size" brief="">
+		<member name="cell_size" type="Vector2" setter="set_cell_size" getter="get_cell_size">
 			The TileMap's cell size.
 		</member>
-		<member name="cell_tile_origin" type="int" setter="set_tile_origin" getter="get_tile_origin" brief="" enum="TileMap.TileOrigin">
+		<member name="cell_tile_origin" type="int" setter="set_tile_origin" getter="get_tile_origin" enum="TileMap.TileOrigin">
 			Position for tile origin. Uses TILE_ORIGIN_* constants. Default value: TILE_ORIGIN_TOP_LEFT.
 		</member>
-		<member name="cell_y_sort" type="bool" setter="set_y_sort_mode" getter="is_y_sort_mode_enabled" brief="">
+		<member name="cell_y_sort" type="bool" setter="set_y_sort_mode" getter="is_y_sort_mode_enabled">
 			If [code]true[/code] the TileMap's children will be drawn in order of their Y coordinate. Default value: [code]false[/code].
 		</member>
-		<member name="collision_bounce" type="float" setter="set_collision_bounce" getter="get_collision_bounce" brief="">
+		<member name="collision_bounce" type="float" setter="set_collision_bounce" getter="get_collision_bounce">
 			Bounce value for static body collisions (see [code]collision_use_kinematic[/code]). Default value: 0.
 		</member>
-		<member name="collision_friction" type="float" setter="set_collision_friction" getter="get_collision_friction" brief="">
+		<member name="collision_friction" type="float" setter="set_collision_friction" getter="get_collision_friction">
 			Friction value for static body collisions (see [code]collision_use_kinematic[/code]). Default value: 1.
 		</member>
-		<member name="collision_layer" type="int" setter="set_collision_layer" getter="get_collision_layer" brief="">
+		<member name="collision_layer" type="int" setter="set_collision_layer" getter="get_collision_layer">
 			The collision layer(s) for all colliders in the TileMap.
 		</member>
-		<member name="collision_mask" type="int" setter="set_collision_mask" getter="get_collision_mask" brief="">
+		<member name="collision_mask" type="int" setter="set_collision_mask" getter="get_collision_mask">
 			The collision mask(s) for all colliders in the TileMap.
 		</member>
-		<member name="collision_use_kinematic" type="bool" setter="set_collision_use_kinematic" getter="get_collision_use_kinematic" brief="">
+		<member name="collision_use_kinematic" type="bool" setter="set_collision_use_kinematic" getter="get_collision_use_kinematic">
 			If [code]true[/code] TileMap collisions will be handled as a kinematic body. If [code]false[/code] collisions will be handled as static body. Default value: [code]false[/code].
 		</member>
-		<member name="mode" type="int" setter="set_mode" getter="get_mode" brief="" enum="TileMap.Mode">
+		<member name="mode" type="int" setter="set_mode" getter="get_mode" enum="TileMap.Mode">
 			The TileMap orientation mode. Uses MODE_* constants. Default value: MODE_SQUARE.
 		</member>
-		<member name="occluder_light_mask" type="int" setter="set_occluder_light_mask" getter="get_occluder_light_mask" brief="">
+		<member name="occluder_light_mask" type="int" setter="set_occluder_light_mask" getter="get_occluder_light_mask">
 			The light mask assigned to all light occluders in the TileMap.  The TileSet's light occluders will cast shadows only from Light2D(s) that have the same light mask(s).
 		</member>
-		<member name="tile_data" type="PoolIntArray" setter="_set_tile_data" getter="_get_tile_data" brief="">
+		<member name="tile_data" type="PoolIntArray" setter="_set_tile_data" getter="_get_tile_data">
 			A [PoolIntArray] containing
 		</member>
-		<member name="tile_set" type="TileSet" setter="set_tileset" getter="get_tileset" brief="">
+		<member name="tile_set" type="TileSet" setter="set_tileset" getter="get_tileset">
 			The assigned [TileSet].
 		</member>
 	</members>

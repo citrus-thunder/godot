@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<class name="NavigationMeshInstance" inherits="Spatial" category="Core" version="3.0.alpha.custom_build">
+<class name="NavigationMeshInstance" inherits="Spatial" category="Core" version="3.0-alpha">
 	<brief_description>
 	</brief_description>
 	<description>
@@ -39,9 +39,9 @@
 		</method>
 	</methods>
 	<members>
-		<member name="enabled" type="bool" setter="set_enabled" getter="is_enabled" brief="">
+		<member name="enabled" type="bool" setter="set_enabled" getter="is_enabled">
 		</member>
-		<member name="navmesh" type="NavigationMesh" setter="set_navigation_mesh" getter="get_navigation_mesh" brief="">
+		<member name="navmesh" type="NavigationMesh" setter="set_navigation_mesh" getter="get_navigation_mesh">
 		</member>
 	</members>
 	<constants>

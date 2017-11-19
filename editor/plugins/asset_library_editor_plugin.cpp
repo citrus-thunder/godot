@@ -33,6 +33,8 @@
 #include "editor_settings.h"
 #include "io/json.h"
 
+#include "version_generated.gen.h"
+
 void EditorAssetLibraryItem::configure(const String &p_title, int p_asset_id, const String &p_category, int p_category_id, const String &p_author, int p_author_id, int p_rating, const String &p_cost) {
 
 	title->set_text(p_title);
@@ -867,6 +869,8 @@ void EditorAssetLibrary::_search(int p_page) {
 	}
 	args += String() + "sort=" + sort_key[sort->get_selected()];
 
+	args += "&godot_version=" + itos(VERSION_MAJOR) + "." + itos(VERSION_MINOR);
+
 	String support_list;
 	for (int i = 0; i < SUPPORT_MAX; i++) {
 		if (support->get_popup()->is_item_checked(i)) {
@@ -1348,13 +1352,11 @@ EditorAssetLibrary::EditorAssetLibrary(bool p_templates_only) {
 	search_hb2->add_child(memnew(Label(TTR("Site:") + " ")));
 	repository = memnew(OptionButton);
 
-	// FIXME: Reenable me once GH-7147 is fixed.
-	/*
 	repository->add_item("godotengine.org");
 	repository->set_item_metadata(0, "https://godotengine.org/asset-library/api");
-	*/
 	repository->add_item("localhost");
-	repository->set_item_metadata(/*1*/ 0, "http://127.0.0.1/asset-library/api");
+	repository->set_item_metadata(1, "http://127.0.0.1/asset-library/api");
+
 	repository->connect("item_selected", this, "_repository_changed");
 
 	search_hb2->add_child(repository);
@@ -1434,7 +1436,7 @@ EditorAssetLibrary::EditorAssetLibrary(bool p_templates_only) {
 	error_hb = memnew(HBoxContainer);
 	library_main->add_child(error_hb);
 	error_label = memnew(Label);
-	error_label->add_color_override("color", Color(1, 0.4, 0.3));
+	error_label->add_color_override("color", get_color("error_color", "Editor"));
 	error_hb->add_child(error_label);
 
 	description = NULL;
@@ -1478,7 +1480,7 @@ AssetLibraryEditorPlugin::AssetLibraryEditorPlugin(EditorNode *p_node) {
 	addon_library = memnew(EditorAssetLibrary);
 	addon_library->set_v_size_flags(Control::SIZE_EXPAND_FILL);
 	editor->get_viewport()->add_child(addon_library);
-	addon_library->set_area_as_parent_rect();
+	addon_library->set_anchors_and_margins_preset(Control::PRESET_WIDE);
 	addon_library->hide();
 }
 

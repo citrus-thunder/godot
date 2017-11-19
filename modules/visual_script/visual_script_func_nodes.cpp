@@ -29,9 +29,9 @@
 /*************************************************************************/
 #include "visual_script_func_nodes.h"
 
+#include "engine.h"
 #include "io/resource_loader.h"
 #include "os/os.h"
-#include "project_settings.h"
 #include "scene/main/node.h"
 #include "scene/main/scene_tree.h"
 #include "visual_script_nodes.h"
@@ -42,7 +42,7 @@
 
 int VisualScriptFunctionCall::get_output_sequence_port_count() const {
 
-	if (method_cache.flags & METHOD_FLAG_CONST || call_mode == CALL_MODE_BASIC_TYPE)
+	if (method_cache.flags & METHOD_FLAG_CONST || (call_mode == CALL_MODE_BASIC_TYPE && Variant::is_method_const(basic_type, function)))
 		return 0;
 	else
 		return 1;
@@ -50,7 +50,7 @@ int VisualScriptFunctionCall::get_output_sequence_port_count() const {
 
 bool VisualScriptFunctionCall::has_input_sequence_port() const {
 
-	if (method_cache.flags & METHOD_FLAG_CONST || call_mode == CALL_MODE_BASIC_TYPE)
+	if (method_cache.flags & METHOD_FLAG_CONST || (call_mode == CALL_MODE_BASIC_TYPE && Variant::is_method_const(basic_type, function)))
 		return false;
 	else
 		return true;
@@ -344,7 +344,7 @@ void VisualScriptFunctionCall::set_singleton(const StringName &p_type) {
 		return;
 
 	singleton = p_type;
-	Object *obj = ProjectSettings::get_singleton()->get_singleton_object(singleton);
+	Object *obj = Engine::get_singleton()->get_singleton_object(singleton);
 	if (obj) {
 		base_type = obj->get_class();
 	}
@@ -380,7 +380,7 @@ void VisualScriptFunctionCall::_update_method_cache() {
 
 	} else if (call_mode == CALL_MODE_SINGLETON) {
 
-		Object *obj = ProjectSettings::get_singleton()->get_singleton_object(singleton);
+		Object *obj = Engine::get_singleton()->get_singleton_object(singleton);
 		if (obj) {
 			type = obj->get_class();
 			script = obj->get_script();
@@ -565,11 +565,11 @@ void VisualScriptFunctionCall::_validate_property(PropertyInfo &property) const 
 		if (call_mode != CALL_MODE_SINGLETON) {
 			property.usage = 0;
 		} else {
-			List<ProjectSettings::Singleton> names;
-			ProjectSettings::get_singleton()->get_singletons(&names);
+			List<Engine::Singleton> names;
+			Engine::get_singleton()->get_singletons(&names);
 			property.hint = PROPERTY_HINT_ENUM;
 			String sl;
-			for (List<ProjectSettings::Singleton>::Element *E = names.front(); E; E = E->next()) {
+			for (List<Engine::Singleton>::Element *E = names.front(); E; E = E->next()) {
 				if (sl != String())
 					sl += ",";
 				sl += E->get().name;
@@ -603,7 +603,7 @@ void VisualScriptFunctionCall::_validate_property(PropertyInfo &property) const 
 			property.hint_string = itos(get_visual_script()->get_instance_id());
 		} else if (call_mode == CALL_MODE_SINGLETON) {
 
-			Object *obj = ProjectSettings::get_singleton()->get_singleton_object(singleton);
+			Object *obj = Engine::get_singleton()->get_singleton_object(singleton);
 			if (obj) {
 				property.hint = PROPERTY_HINT_METHOD_OF_INSTANCE;
 				property.hint_string = itos(obj->get_instance_id());
@@ -748,6 +748,13 @@ void VisualScriptFunctionCall::_bind_methods() {
 	BIND_ENUM_CONSTANT(CALL_MODE_NODE_PATH);
 	BIND_ENUM_CONSTANT(CALL_MODE_INSTANCE);
 	BIND_ENUM_CONSTANT(CALL_MODE_BASIC_TYPE);
+	BIND_ENUM_CONSTANT(CALL_MODE_SINGLETON);
+
+	BIND_ENUM_CONSTANT(RPC_DISABLED);
+	BIND_ENUM_CONSTANT(RPC_RELIABLE);
+	BIND_ENUM_CONSTANT(RPC_UNRELIABLE);
+	BIND_ENUM_CONSTANT(RPC_RELIABLE_TO_ID);
+	BIND_ENUM_CONSTANT(RPC_UNRELIABLE_TO_ID);
 }
 
 class VisualScriptNodeInstanceFunctionCall : public VisualScriptNodeInstance {
@@ -756,7 +763,7 @@ public:
 	NodePath node_path;
 	int input_args;
 	bool validate;
-	bool returns;
+	int returns;
 	VisualScriptFunctionCall::RPCCallMode rpc_mode;
 	StringName function;
 	StringName singleton;
@@ -849,7 +856,15 @@ public:
 					}
 				} else if (returns) {
 					if (call_mode == VisualScriptFunctionCall::CALL_MODE_INSTANCE) {
-						*p_outputs[1] = v.call(function, p_inputs + 1, input_args, r_error);
+						if (returns >= 2) {
+							*p_outputs[1] = v.call(function, p_inputs + 1, input_args, r_error);
+						} else if (returns == 1) {
+							v.call(function, p_inputs + 1, input_args, r_error);
+						} else {
+							r_error.error = Variant::CallError::CALL_ERROR_INVALID_METHOD;
+							r_error_str = "Invalid returns count for call_mode == CALL_MODE_INSTANCE";
+							return 0;
+						}
 					} else {
 						*p_outputs[0] = v.call(function, p_inputs + 1, input_args, r_error);
 					}
@@ -864,7 +879,7 @@ public:
 			} break;
 			case VisualScriptFunctionCall::CALL_MODE_SINGLETON: {
 
-				Object *object = ProjectSettings::get_singleton()->get_singleton_object(singleton);
+				Object *object = Engine::get_singleton()->get_singleton_object(singleton);
 				if (!object) {
 					r_error.error = Variant::CallError::CALL_ERROR_INVALID_METHOD;
 					r_error_str = "Invalid singleton name: '" + String(singleton) + "'";
@@ -1487,6 +1502,19 @@ void VisualScriptPropertySet::_bind_methods() {
 	BIND_ENUM_CONSTANT(CALL_MODE_SELF);
 	BIND_ENUM_CONSTANT(CALL_MODE_NODE_PATH);
 	BIND_ENUM_CONSTANT(CALL_MODE_INSTANCE);
+	BIND_ENUM_CONSTANT(CALL_MODE_BASIC_TYPE);
+
+	BIND_ENUM_CONSTANT(ASSIGN_OP_NONE);
+	BIND_ENUM_CONSTANT(ASSIGN_OP_ADD);
+	BIND_ENUM_CONSTANT(ASSIGN_OP_SUB);
+	BIND_ENUM_CONSTANT(ASSIGN_OP_MUL);
+	BIND_ENUM_CONSTANT(ASSIGN_OP_DIV);
+	BIND_ENUM_CONSTANT(ASSIGN_OP_MOD);
+	BIND_ENUM_CONSTANT(ASSIGN_OP_SHIFT_LEFT);
+	BIND_ENUM_CONSTANT(ASSIGN_OP_SHIFT_RIGHT);
+	BIND_ENUM_CONSTANT(ASSIGN_OP_BIT_AND);
+	BIND_ENUM_CONSTANT(ASSIGN_OP_BIT_OR);
+	BIND_ENUM_CONSTANT(ASSIGN_OP_BIT_XOR);
 }
 
 class VisualScriptNodeInstancePropertySet : public VisualScriptNodeInstance {
@@ -1526,7 +1554,7 @@ public:
 					value = Variant::evaluate(Variant::OP_ADD, value, p_argument);
 				} break;
 				case VisualScriptPropertySet::ASSIGN_OP_SUB: {
-					value = Variant::evaluate(Variant::OP_SUBSTRACT, value, p_argument);
+					value = Variant::evaluate(Variant::OP_SUBTRACT, value, p_argument);
 				} break;
 				case VisualScriptPropertySet::ASSIGN_OP_MUL: {
 					value = Variant::evaluate(Variant::OP_MULTIPLY, value, p_argument);

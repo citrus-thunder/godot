@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<class name="HTTPRequest" inherits="Node" category="Core" version="3.0.alpha.custom_build">
+<class name="HTTPRequest" inherits="Node" category="Core" version="3.0-alpha">
 	<brief_description>
 		A Node with the ability to send HTTP requests.
 	</brief_description>
@@ -122,11 +122,11 @@
 		</method>
 	</methods>
 	<members>
-		<member name="body_size_limit" type="int" setter="set_body_size_limit" getter="get_body_size_limit" brief="">
+		<member name="body_size_limit" type="int" setter="set_body_size_limit" getter="get_body_size_limit">
 		</member>
-		<member name="max_redirects" type="int" setter="set_max_redirects" getter="get_max_redirects" brief="">
+		<member name="max_redirects" type="int" setter="set_max_redirects" getter="get_max_redirects">
 		</member>
-		<member name="use_threads" type="bool" setter="set_use_threads" getter="is_using_threads" brief="">
+		<member name="use_threads" type="bool" setter="set_use_threads" getter="is_using_threads">
 		</member>
 	</members>
 	<signals>
@@ -166,7 +166,7 @@
 			Request does not have a response(yet).
 		</constant>
 		<constant name="RESULT_BODY_SIZE_LIMIT_EXCEEDED" value="7">
-			Request exceded its maximum size limit, see [method set_body_size_limit].
+			Request exceeded its maximum size limit, see [method set_body_size_limit].
 		</constant>
 		<constant name="RESULT_REQUEST_FAILED" value="8">
 			Request failed. (unused)

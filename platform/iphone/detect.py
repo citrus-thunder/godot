@@ -20,24 +20,24 @@ def can_build():
 
 
 def get_opts():
-
+    from SCons.Variables import BoolVariable
     return [
         ('IPHONEPLATFORM', 'Name of the iPhone platform', 'iPhoneOS'),
         ('IPHONEPATH', 'Path to iPhone toolchain', '/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain'),
         ('IPHONESDK', 'Path to the iPhone SDK', '/Applications/Xcode.app/Contents/Developer/Platforms/${IPHONEPLATFORM}.platform/Developer/SDKs/${IPHONEPLATFORM}.sdk/'),
-        ('game_center', 'Support for game center', 'yes'),
-        ('store_kit', 'Support for in-app store', 'yes'),
-        ('icloud', 'Support for iCloud', 'yes'),
-        ('ios_exceptions', 'Enable exceptions', 'no'),
+        BoolVariable('game_center', 'Support for game center', True),
+        BoolVariable('store_kit', 'Support for in-app store', True),
+        BoolVariable('icloud', 'Support for iCloud', True),
+        BoolVariable('ios_exceptions', 'Enable exceptions', False),
         ('ios_triple', 'Triple for ios toolchain', ''),
-        ('ios_sim', 'Build simulator binary', 'no'),
+        BoolVariable('ios_sim', 'Build simulator binary', False),
     ]
 
 
 def get_flags():
 
     return [
-        ('tools', 'no'),
+        ('tools', False),
     ]
 
 
@@ -47,8 +47,8 @@ def configure(env):
 
     if (env["target"].startswith("release")):
         env.Append(CPPFLAGS=['-DNDEBUG', '-DNS_BLOCK_ASSERTIONS=1'])
-        env.Append(CPPFLAGS=['-O2', '-flto', '-ftree-vectorize', '-fomit-frame-pointer', '-ffast-math', '-funsafe-math-optimizations'])
-        env.Append(LINKFLAGS=['-O2', '-flto'])
+        env.Append(CPPFLAGS=['-O2', '-ftree-vectorize', '-fomit-frame-pointer', '-ffast-math', '-funsafe-math-optimizations'])
+        env.Append(LINKFLAGS=['-O2'])
 
         if env["target"] == "release_debug":
             env.Append(CPPFLAGS=['-DDEBUG_ENABLED'])
@@ -56,9 +56,13 @@ def configure(env):
     elif (env["target"] == "debug"):
         env.Append(CPPFLAGS=['-D_DEBUG', '-DDEBUG=1', '-gdwarf-2', '-O0', '-DDEBUG_ENABLED', '-DDEBUG_MEMORY_ENABLED'])
 
+    if (env["use_lto"]):
+        env.Append(CPPFLAGS=['-flto'])
+        env.Append(LINKFLAGS=['-flto'])
+
     ## Architecture
 
-    if (env["ios_sim"] == "yes" or env["arch"] == "x86"):  # i386, simulator
+    if env["ios_sim"] or env["arch"] == "x86":  # i386, simulator
         env["arch"] = "x86"
         env["bits"] = "32"
     elif (env["arch"] == "arm" or env["arch"] == "arm32" or env["arch"] == "armv7" or env["bits"] == "32"):  # arm
@@ -72,11 +76,22 @@ def configure(env):
 
     env['ENV']['PATH'] = env['IPHONEPATH'] + "/Developer/usr/bin/:" + env['ENV']['PATH']
 
-    env['CC'] = '$IPHONEPATH/usr/bin/${ios_triple}clang'
-    env['CXX'] = '$IPHONEPATH/usr/bin/${ios_triple}clang++'
-    env['AR'] = '$IPHONEPATH/usr/bin/${ios_triple}ar'
-    env['RANLIB'] = '$IPHONEPATH/usr/bin/${ios_triple}ranlib'
-    env['S_compiler'] = '$IPHONEPATH/Developer/usr/bin/gcc'
+    compiler_path = '$IPHONEPATH/usr/bin/${ios_triple}'
+    s_compiler_path = '$IPHONEPATH/Developer/usr/bin/'
+
+    ccache_path = os.environ.get("CCACHE")
+    if ccache_path == None:
+        env['CC'] = compiler_path + 'clang'
+        env['CXX'] = compiler_path + 'clang++'
+        env['S_compiler'] = s_compiler_path + 'gcc'
+    else:
+        # there aren't any ccache wrappers available for iOS,
+        # to enable caching we need to prepend the path to the ccache binary
+        env['CC'] = ccache_path + ' ' + compiler_path + 'clang'
+        env['CXX'] = ccache_path + ' ' + compiler_path + 'clang++'
+        env['S_compiler'] = ccache_path + ' ' + s_compiler_path + 'gcc'
+    env['AR'] = compiler_path + 'ar'
+    env['RANLIB'] = compiler_path + 'ranlib'
 
     ## Compile flags
 
@@ -91,7 +106,7 @@ def configure(env):
         env.Append(CPPFLAGS=['-DNEED_LONG_INT'])
         env.Append(CPPFLAGS=['-DLIBYUV_DISABLE_NEON'])
 
-    if env['ios_exceptions'] == 'yes':
+    if env['ios_exceptions']:
         env.Append(CPPFLAGS=['-fexceptions'])
     else:
         env.Append(CPPFLAGS=['-fno-exceptions'])
@@ -129,15 +144,15 @@ def configure(env):
                           ])
 
     # Feature options
-    if env['game_center'] == 'yes':
+    if env['game_center']:
         env.Append(CPPFLAGS=['-DGAME_CENTER_ENABLED'])
         env.Append(LINKFLAGS=['-framework', 'GameKit'])
 
-    if env['store_kit'] == 'yes':
+    if env['store_kit']:
         env.Append(CPPFLAGS=['-DSTOREKIT_ENABLED'])
         env.Append(LINKFLAGS=['-framework', 'StoreKit'])
 
-    if env['icloud'] == 'yes':
+    if env['icloud']:
         env.Append(CPPFLAGS=['-DICLOUD_ENABLED'])
 
     env.Append(CPPPATH=['$IPHONESDK/usr/include',
@@ -148,10 +163,10 @@ def configure(env):
     env['ENV']['CODESIGN_ALLOCATE'] = '/Developer/Platforms/iPhoneOS.platform/Developer/usr/bin/codesign_allocate'
 
     env.Append(CPPPATH=['#platform/iphone'])
-    env.Append(CPPFLAGS=['-DIPHONE_ENABLED', '-DUNIX_ENABLED', '-DGLES2_ENABLED', '-DMPC_FIXED_POINT'])
+    env.Append(CPPFLAGS=['-DIPHONE_ENABLED', '-DUNIX_ENABLED', '-DGLES2_ENABLED', '-DMPC_FIXED_POINT', '-DCOREAUDIO_ENABLED'])
 
     # TODO: Move that to opus module's config
-    if("module_opus_enabled" in env and env["module_opus_enabled"] != "no"):
+    if 'module_opus_enabled' in env and env['module_opus_enabled']:
         env.opus_fixed_point = "yes"
         if (env["arch"] == "arm"):
             env.Append(CFLAGS=["-DOPUS_ARM_OPT"])

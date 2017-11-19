@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<class name="MeshInstance" inherits="GeometryInstance" category="Core" version="3.0.alpha.custom_build">
+<class name="MeshInstance" inherits="GeometryInstance" category="Core" version="3.0-alpha">
 	<brief_description>
 		Node that instances meshes into a scenario.
 	</brief_description>
@@ -82,10 +82,10 @@
 		</method>
 	</methods>
 	<members>
-		<member name="mesh" type="Mesh" setter="set_mesh" getter="get_mesh" brief="">
+		<member name="mesh" type="Mesh" setter="set_mesh" getter="get_mesh">
 			The [Mesh] resource for the instance.
 		</member>
-		<member name="skeleton" type="NodePath" setter="set_skeleton_path" getter="get_skeleton_path" brief="">
+		<member name="skeleton" type="NodePath" setter="set_skeleton_path" getter="get_skeleton_path">
 			[NodePath] to the [Skeleton] associated with the instance.
 		</member>
 	</members>

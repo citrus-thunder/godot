@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<class name="LinkButton" inherits="BaseButton" category="Core" version="3.0.alpha.custom_build">
+<class name="LinkButton" inherits="BaseButton" category="Core" version="3.0-alpha">
 	<brief_description>
 		Simple button used to represent a link to some resource
 	</brief_description>
@@ -40,14 +40,14 @@
 			<argument index="0" name="underline_mode" type="int" enum="LinkButton.UnderlineMode">
 			</argument>
 			<description>
-				Sets the underline mode for this button, the argument must be one of the [LinkButton] constants (see constants section).
+				Sets the underline mode for this button, the argument must be one of the [code]LinkButton[/code] constants (see constants section).
 			</description>
 		</method>
 	</methods>
 	<members>
-		<member name="text" type="String" setter="set_text" getter="get_text" brief="">
+		<member name="text" type="String" setter="set_text" getter="get_text">
 		</member>
-		<member name="underline" type="int" setter="set_underline_mode" getter="get_underline_mode" brief="" enum="LinkButton.UnderlineMode">
+		<member name="underline" type="int" setter="set_underline_mode" getter="get_underline_mode" enum="LinkButton.UnderlineMode">
 		</member>
 	</members>
 	<constants>

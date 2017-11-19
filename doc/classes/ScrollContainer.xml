@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<class name="ScrollContainer" inherits="Container" category="Core" version="3.0.alpha.custom_build">
+<class name="ScrollContainer" inherits="Container" category="Core" version="3.0-alpha">
 	<brief_description>
 		A helper node for displaying scrollable elements (e.g. lists).
 	</brief_description>
@@ -77,9 +77,9 @@
 		</method>
 	</methods>
 	<members>
-		<member name="scroll_horizontal" type="bool" setter="set_enable_h_scroll" getter="is_h_scroll_enabled" brief="">
+		<member name="scroll_horizontal" type="bool" setter="set_enable_h_scroll" getter="is_h_scroll_enabled">
 		</member>
-		<member name="scroll_vertical" type="bool" setter="set_enable_v_scroll" getter="is_v_scroll_enabled" brief="">
+		<member name="scroll_vertical" type="bool" setter="set_enable_v_scroll" getter="is_v_scroll_enabled">
 		</member>
 	</members>
 	<constants>

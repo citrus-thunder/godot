@@ -33,7 +33,7 @@
 #include "servers/visual_server.h"
 #include "skeleton.h"
 
-Rect3 VisualInstance::get_transformed_aabb() const {
+AABB VisualInstance::get_transformed_aabb() const {
 
 	return get_global_transform().xform(get_aabb());
 }
@@ -288,12 +288,13 @@ void GeometryInstance::_bind_methods() {
 
 	//ADD_SIGNAL( MethodInfo("visibility_changed"));
 
-	BIND_CONSTANT(FLAG_MAX);
+	BIND_ENUM_CONSTANT(SHADOW_CASTING_SETTING_OFF);
+	BIND_ENUM_CONSTANT(SHADOW_CASTING_SETTING_ON);
+	BIND_ENUM_CONSTANT(SHADOW_CASTING_SETTING_DOUBLE_SIDED);
+	BIND_ENUM_CONSTANT(SHADOW_CASTING_SETTING_SHADOWS_ONLY);
 
-	BIND_CONSTANT(SHADOW_CASTING_SETTING_OFF);
-	BIND_CONSTANT(SHADOW_CASTING_SETTING_ON);
-	BIND_CONSTANT(SHADOW_CASTING_SETTING_DOUBLE_SIDED);
-	BIND_CONSTANT(SHADOW_CASTING_SETTING_SHADOWS_ONLY);
+	BIND_ENUM_CONSTANT(FLAG_USE_BAKED_LIGHT);
+	BIND_ENUM_CONSTANT(FLAG_MAX);
 }
 
 GeometryInstance::GeometryInstance() {

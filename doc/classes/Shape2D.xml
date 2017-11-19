@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<class name="Shape2D" inherits="Resource" category="Core" version="3.0.alpha.custom_build">
+<class name="Shape2D" inherits="Resource" category="Core" version="3.0-alpha">
 	<brief_description>
 		Base class for all 2D Shapes.
 	</brief_description>
@@ -94,7 +94,7 @@
 		</method>
 	</methods>
 	<members>
-		<member name="custom_solver_bias" type="float" setter="set_custom_solver_bias" getter="get_custom_solver_bias" brief="">
+		<member name="custom_solver_bias" type="float" setter="set_custom_solver_bias" getter="get_custom_solver_bias">
 		</member>
 	</members>
 	<constants>

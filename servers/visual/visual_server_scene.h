@@ -195,8 +195,8 @@ public:
 
 		SelfList<Instance> update_item;
 
-		Rect3 aabb;
-		Rect3 transformed_aabb;
+		AABB aabb;
+		AABB transformed_aabb;
 		float extra_margin;
 		uint32_t object_ID;
 
@@ -359,6 +359,7 @@ public:
 			float attenuation;
 			float spot_angle;
 			float spot_attenuation;
+			bool visible;
 
 			bool operator==(const LightCache &p_cache) {
 
@@ -369,7 +370,8 @@ public:
 						radius == p_cache.radius &&
 						attenuation == p_cache.attenuation &&
 						spot_angle == p_cache.spot_angle &&
-						spot_attenuation == p_cache.spot_attenuation);
+						spot_attenuation == p_cache.spot_attenuation &&
+						visible == p_cache.visible);
 			}
 
 			LightCache() {
@@ -380,6 +382,7 @@ public:
 				attenuation = 1.0;
 				spot_angle = 1.0;
 				spot_attenuation = 1.0;
+				visible = true;
 			}
 		};
 
@@ -463,7 +466,7 @@ public:
 	virtual void instance_set_extra_visibility_margin(RID p_instance, real_t p_margin);
 
 	// don't use these in a game!
-	virtual Vector<ObjectID> instances_cull_aabb(const Rect3 &p_aabb, RID p_scenario = RID()) const;
+	virtual Vector<ObjectID> instances_cull_aabb(const AABB &p_aabb, RID p_scenario = RID()) const;
 	virtual Vector<ObjectID> instances_cull_ray(const Vector3 &p_from, const Vector3 &p_to, RID p_scenario = RID()) const;
 	virtual Vector<ObjectID> instances_cull_convex(const Vector<Plane> &p_convex, RID p_scenario = RID()) const;
 

@@ -53,6 +53,7 @@ public class GodotLib {
      public static native void step();
      public static native void touch(int what,int pointer,int howmany, int[] arr);
      public static native void accelerometer(float x, float y, float z);
+     public static native void gravity(float x, float y, float z);
      public static native void magnetometer(float x, float y, float z);
      public static native void gyroscope(float x, float y, float z);
 	 public static native void key(int p_scancode, int p_unicode_char, boolean p_pressed);
@@ -68,5 +69,7 @@ public class GodotLib {
      public static native String getGlobal(String p_key);
 	public static native void callobject(int p_ID, String p_method, Object[] p_params);
 	public static native void calldeferred(int p_ID, String p_method, Object[] p_params);
+
+	public static native void setVirtualKeyboardHeight(int p_height);
 
 }

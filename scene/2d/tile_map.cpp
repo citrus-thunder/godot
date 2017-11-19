@@ -448,21 +448,20 @@ void TileMap::_update_dirty_quadrants() {
 			if (r == Rect2()) {
 				tex->draw_rect(canvas_item, rect, false, modulate, c.transpose, normal_map);
 			} else {
-				tex->draw_rect_region(canvas_item, rect, r, modulate, c.transpose, normal_map);
+				tex->draw_rect_region(canvas_item, rect, r, modulate, c.transpose, normal_map, clip_uv);
 			}
 
 			Vector<TileSet::ShapeData> shapes = tile_set->tile_get_shapes(c.id);
 
 			for (int i = 0; i < shapes.size(); i++) {
-
 				Ref<Shape2D> shape = shapes[i].shape;
 				if (shape.is_valid()) {
 					Transform2D xform;
 					xform.set_origin(offset.floor());
 
-					_fix_cell_transform(xform, c, center_ofs, s);
+					Vector2 shape_ofs = tile_set->tile_get_shape_offset(c.id, i);
 
-					xform *= shapes[i].shape_transform;
+					_fix_cell_transform(xform, c, shape_ofs + center_ofs, s);
 
 					if (debug_canvas_item.is_valid()) {
 						vs->canvas_item_add_set_transform(debug_canvas_item, xform);
@@ -587,7 +586,9 @@ Map<TileMap::PosKey, TileMap::Quadrant>::Element *TileMap::_create_quadrant(cons
 
 	xform.set_origin(q.pos);
 	//q.canvas_item = VisualServer::get_singleton()->canvas_item_create();
-	q.body = Physics2DServer::get_singleton()->body_create(use_kinematic ? Physics2DServer::BODY_MODE_KINEMATIC : Physics2DServer::BODY_MODE_STATIC);
+	q.body = Physics2DServer::get_singleton()->body_create();
+	Physics2DServer::get_singleton()->body_set_mode(q.body, use_kinematic ? Physics2DServer::BODY_MODE_KINEMATIC : Physics2DServer::BODY_MODE_STATIC);
+
 	Physics2DServer::get_singleton()->body_attach_object_instance_id(q.body, get_instance_id());
 	Physics2DServer::get_singleton()->body_set_collision_layer(q.body, collision_layer);
 	Physics2DServer::get_singleton()->body_set_collision_mask(q.body, collision_mask);
@@ -882,7 +883,7 @@ PoolVector<int> TileMap::_get_tile_data() const {
 	return data;
 }
 
-Rect2 TileMap::get_item_rect() const {
+Rect2 TileMap::_edit_get_rect() const {
 
 	const_cast<TileMap *>(this)->_update_dirty_quadrants();
 	return rect_cache;
@@ -1234,6 +1235,21 @@ void TileMap::set_light_mask(int p_light_mask) {
 	}
 }
 
+void TileMap::set_clip_uv(bool p_enable) {
+
+	if (clip_uv == p_enable)
+		return;
+
+	_clear_quadrants();
+	clip_uv = p_enable;
+	_recreate_quadrants();
+}
+
+bool TileMap::get_clip_uv() const {
+
+	return clip_uv;
+}
+
 void TileMap::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("set_tileset", "tileset"), &TileMap::set_tileset);
@@ -1266,6 +1282,9 @@ void TileMap::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_center_y", "enable"), &TileMap::set_center_y);
 	ClassDB::bind_method(D_METHOD("get_center_y"), &TileMap::get_center_y);
 
+	ClassDB::bind_method(D_METHOD("set_clip_uv", "enable"), &TileMap::set_clip_uv);
+	ClassDB::bind_method(D_METHOD("get_clip_uv"), &TileMap::get_clip_uv);
+
 	ClassDB::bind_method(D_METHOD("set_y_sort_mode", "enable"), &TileMap::set_y_sort_mode);
 	ClassDB::bind_method(D_METHOD("is_y_sort_mode_enabled"), &TileMap::is_y_sort_mode_enabled);
 
@@ -1294,9 +1313,9 @@ void TileMap::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_occluder_light_mask"), &TileMap::get_occluder_light_mask);
 
 	ClassDB::bind_method(D_METHOD("set_cell", "x", "y", "tile", "flip_x", "flip_y", "transpose"), &TileMap::set_cell, DEFVAL(false), DEFVAL(false), DEFVAL(false));
-	ClassDB::bind_method(D_METHOD("set_cellv", "pos", "tile", "flip_x", "flip_y", "transpose"), &TileMap::set_cellv, DEFVAL(false), DEFVAL(false), DEFVAL(false));
+	ClassDB::bind_method(D_METHOD("set_cellv", "position", "tile", "flip_x", "flip_y", "transpose"), &TileMap::set_cellv, DEFVAL(false), DEFVAL(false), DEFVAL(false));
 	ClassDB::bind_method(D_METHOD("get_cell", "x", "y"), &TileMap::get_cell);
-	ClassDB::bind_method(D_METHOD("get_cellv", "pos"), &TileMap::get_cellv);
+	ClassDB::bind_method(D_METHOD("get_cellv", "position"), &TileMap::get_cellv);
 	ClassDB::bind_method(D_METHOD("is_cell_x_flipped", "x", "y"), &TileMap::is_cell_x_flipped);
 	ClassDB::bind_method(D_METHOD("is_cell_y_flipped", "x", "y"), &TileMap::is_cell_y_flipped);
 	ClassDB::bind_method(D_METHOD("is_cell_transposed", "x", "y"), &TileMap::is_cell_transposed);
@@ -1307,8 +1326,8 @@ void TileMap::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_used_cells_by_id", "id"), &TileMap::get_used_cells_by_id);
 	ClassDB::bind_method(D_METHOD("get_used_rect"), &TileMap::get_used_rect);
 
-	ClassDB::bind_method(D_METHOD("map_to_world", "mappos", "ignore_half_ofs"), &TileMap::map_to_world, DEFVAL(false));
-	ClassDB::bind_method(D_METHOD("world_to_map", "worldpos"), &TileMap::world_to_map);
+	ClassDB::bind_method(D_METHOD("map_to_world", "map_position", "ignore_half_ofs"), &TileMap::map_to_world, DEFVAL(false));
+	ClassDB::bind_method(D_METHOD("world_to_map", "world_position"), &TileMap::world_to_map);
 
 	ClassDB::bind_method(D_METHOD("_clear_quadrants"), &TileMap::_clear_quadrants);
 	ClassDB::bind_method(D_METHOD("_recreate_quadrants"), &TileMap::_recreate_quadrants);
@@ -1327,6 +1346,7 @@ void TileMap::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "cell_half_offset", PROPERTY_HINT_ENUM, "Offset X,Offset Y,Disabled"), "set_half_offset", "get_half_offset");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "cell_tile_origin", PROPERTY_HINT_ENUM, "Top Left,Center,Bottom Left"), "set_tile_origin", "get_tile_origin");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "cell_y_sort"), "set_y_sort_mode", "is_y_sort_mode_enabled");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "cell_clip_uv"), "set_clip_uv", "get_clip_uv");
 
 	ADD_GROUP("Collision", "collision_");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "collision_use_kinematic", PROPERTY_HINT_NONE, ""), "set_collision_use_kinematic", "get_collision_use_kinematic");
@@ -1377,6 +1397,7 @@ TileMap::TileMap() {
 	navigation = NULL;
 	y_sort_mode = false;
 	occluder_light_mask = 1;
+	clip_uv = false;
 
 	fp_adjust = 0.00001;
 	tile_origin = TILE_ORIGIN_TOP_LEFT;

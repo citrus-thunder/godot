@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<class name="World" inherits="Resource" category="Core" version="3.0.alpha.custom_build">
+<class name="World" inherits="Resource" category="Core" version="3.0-alpha">
 	<brief_description>
 		Class that has everything pertaining to a world.
 	</brief_description>
@@ -59,9 +59,9 @@
 		</method>
 	</methods>
 	<members>
-		<member name="environment" type="Environment" setter="set_environment" getter="get_environment" brief="">
+		<member name="environment" type="Environment" setter="set_environment" getter="get_environment">
 		</member>
-		<member name="fallback_environment" type="Environment" setter="set_fallback_environment" getter="get_fallback_environment" brief="">
+		<member name="fallback_environment" type="Environment" setter="set_fallback_environment" getter="get_fallback_environment">
 		</member>
 	</members>
 	<constants>

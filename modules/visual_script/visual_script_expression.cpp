@@ -564,6 +564,9 @@ Error VisualScriptExpression::_get_token(Token &r_token) {
 					} else if (id == "PI") {
 						r_token.type = TK_CONSTANT;
 						r_token.value = Math_PI;
+					} else if (id == "TAU") {
+						r_token.type = TK_CONSTANT;
+						r_token.value = Math_TAU;
 					} else if (id == "INF") {
 						r_token.type = TK_CONSTANT;
 						r_token.value = Math_INF;
@@ -1023,7 +1026,7 @@ VisualScriptExpression::ENode *VisualScriptExpression::_parse_expression() {
 			case TK_OP_OR: op = Variant::OP_OR; break;
 			case TK_OP_NOT: op = Variant::OP_NOT; break;
 			case TK_OP_ADD: op = Variant::OP_ADD; break;
-			case TK_OP_SUB: op = Variant::OP_SUBSTRACT; break;
+			case TK_OP_SUB: op = Variant::OP_SUBTRACT; break;
 			case TK_OP_MUL: op = Variant::OP_MULTIPLY; break;
 			case TK_OP_DIV: op = Variant::OP_DIVIDE; break;
 			case TK_OP_MOD: op = Variant::OP_MODULE; break;
@@ -1085,7 +1088,7 @@ VisualScriptExpression::ENode *VisualScriptExpression::_parse_expression() {
 				case Variant::OP_MODULE: priority = 2; break;
 
 				case Variant::OP_ADD: priority = 3; break;
-				case Variant::OP_SUBSTRACT: priority = 3; break;
+				case Variant::OP_SUBTRACT: priority = 3; break;
 
 				case Variant::OP_SHIFT_LEFT: priority = 4; break;
 				case Variant::OP_SHIFT_RIGHT: priority = 4; break;
