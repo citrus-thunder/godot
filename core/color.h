@@ -67,6 +67,23 @@ struct Color {
 		return components[idx];
 	}
 
+	Color operator+(const Color &p_color) const;
+	void operator+=(const Color &p_color);
+
+	Color operator-() const;
+	Color operator-(const Color &p_color) const;
+	void operator-=(const Color &p_color);
+
+	Color operator*(const Color &p_color) const;
+	Color operator*(const real_t &rvalue) const;
+	void operator*=(const Color &p_color);
+	void operator*=(const real_t &rvalue);
+
+	Color operator/(const Color &p_color) const;
+	Color operator/(const real_t &rvalue) const;
+	void operator/=(const Color &p_color);
+	void operator/=(const real_t &rvalue);
+
 	void invert();
 	void contrast();
 	Color inverted() const;
@@ -81,6 +98,24 @@ struct Color {
 		res.b += (p_t * (p_b.b - b));
 		res.a += (p_t * (p_b.a - a));
 
+		return res;
+	}
+
+	_FORCE_INLINE_ Color darkened(float p_amount) const {
+
+		Color res = *this;
+		res.r = CLAMP(res.r * (1.0f - p_amount), 0.0, 1.0);
+		res.g = CLAMP(res.g * (1.0f - p_amount), 0.0, 1.0);
+		res.b = CLAMP(res.b * (1.0f - p_amount), 0.0, 1.0);
+		return res;
+	}
+
+	_FORCE_INLINE_ Color lightened(float p_amount) const {
+
+		Color res = *this;
+		res.r = CLAMP(res.r + (1.0f - res.r) * p_amount, 0.0, 1.0);
+		res.g = CLAMP(res.g + (1.0f - res.g) * p_amount, 0.0, 1.0);
+		res.b = CLAMP(res.b + (1.0f - res.b) * p_amount, 0.0, 1.0);
 		return res;
 	}
 

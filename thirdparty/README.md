@@ -57,13 +57,13 @@ Files extracted from upstream source:
 - Version: 1.06
 - License: OFL-1.1
 
-Use UI font if exists, because it has tight vertial metrix and good for UI.
+Use UI font if exists, because it has tight vertical metrics and good for UI.
 
-### Adobe Source Code Pro Regular
+### Hack Regular
 
-- Upstream: https://github.com/adobe-fonts/source-code-pro
-- Version: 2.030
-- License: OFL-1.1
+- Upstream: https://github.com/source-foundry/Hack
+- Version: 2.020
+- License: Hack Open Font License v2.0
 
 ### DroidSans*.ttf
 
@@ -73,7 +73,7 @@ Use UI font if exists, because it has tight vertial metrix and good for UI.
 ## freetype
 
 - Upstream: https://www.freetype.org
-- Version: 2.8
+- Version: 2.8.1
 - License: FreeType License (BSD-like)
 
 Files extracted from upstream source:
@@ -86,7 +86,7 @@ Files extracted from upstream source:
 ## glad
 
 - Upstream: https://github.com/Dav1dde/glad
-- Version: 0.1.14a0
+- Version: 0.1.16a0
 - License: MIT
 
 The files we package are automatically generated.
@@ -121,7 +121,7 @@ Files extracted from upstream source:
 ## libpng
 
 - Upstream: http://libpng.org/pub/png/libpng.html
-- Version: 1.6.32
+- Version: 1.6.34
 - License: libpng/zlib
 
 Files extracted from upstream source:
@@ -239,7 +239,7 @@ Collection of single-file libraries used in Godot components.
   * License: RSA Message-Digest License
 - `pcg.{cpp,h}`
   * Upstream: http://www.pcg-random.org
-  * Version: minimal C implemention, http://www.pcg-random.org/download.html
+  * Version: minimal C implementation, http://www.pcg-random.org/download.html
   * License: Apache 2.0
 - `sha256.{c,h}`
   * Upstream: https://github.com/ilvn/SHA256
@@ -359,6 +359,11 @@ Files extracted from upstream source:
 - all .cpp and .h files apart from `main.cpp`
 - LICENSE.TXT
 
+## recastnavigation
+
+- Upstream: https://github.com/recastnavigation/recastnavigation
+- version: git commit ef3ea40f - 2016-02-06
+- License: zlib
 
 ## rtaudio
 
@@ -385,16 +390,12 @@ Files extracted from upstream source:
 ## tinyexr
 
 - Upstream: https://github.com/syoyo/tinyexr
-- Version: 0.9.5+ (git a145d69)
+- Version: 0.9.5+ (git 9f784ca - 24 October 2017)
 - License: BSD-3-Clause
 
 Files extracted from upstream source:
 
 - `tinyexr.{cc,h}`
-
-Important: Some changes were made to get TinyEXR to build on the ancient
-MinGW-w64 toolchain of Travis CI.
-https://github.com/godotengine/godot/commit/37f5e1dcd94611dd5b670f013abf0323e8b47def
 
 
 ## zlib
@@ -411,7 +412,7 @@ Files extracted from upstream source:
 ## zstd
 
 - Upstream: https://github.com/facebook/zstd
-- Version: 1.3.1
+- Version: 1.3.2
 - License: BSD-3-Clause
 
 Files extracted from upstream source:

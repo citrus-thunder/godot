@@ -17,31 +17,46 @@ None so far, but your company could be the first! :)
 ## Gold sponsors
 
     Gamblify <https://www.gamblify.com>
+    GameDev.TV <https://www.gamedev.tv>
 
 ## Mini sponsors
 
-    Arron Washington
-    Chris Phyffer
+    Andreas
+    Andreas Hirschauer
     Christian Uldall Pedersen
+    Christoph Woinke
+    E Hewert
     Hein-Pieter van Braam
     Matthieu Huvé
+    Nathan Warden
     Neal Gompa (Conan Kudo)
     Olimpiu Metiu
+    Pascal Julien
     Ruslan Mustakov
+    Slobodan Milnovic
 
 ## Gold donors
 
+    3Dexplorer
     Alexander Otto
+    Andy Meier
+    Asdf
+    cheese65536
     Jake Bo
     Javier
-    Nathan Warden
-    Ranoller
+    Manuele Finocchiaro
+    Officine Pixel S.n.c.
     Rémi Verschelde
     Stephan Lanfermann
 
     Andreas Schüle
+    Austen McRae
     Bernhard Liebl
+    Gerald E Butler
+    Jahn Johansen
     Jordan M Lucas
+    Kris Michael
+    Ranoller
 
     BanjoNode2D
     Chris Serino
@@ -56,54 +71,83 @@ None so far, but your company could be the first! :)
     Przemysław Gołąb (n-pigeon)
     Robert Willes
     Robin Arys
+    ScottMakesGames
     summerblind
     Testus Maximus
     Thomas Bjarnelöf
+    Xavier Tan
+    Zaq Poi
 
     Amanda Haldy
     Andreas Haas
+    Andres Cuevas
+    Arnaud Verstuyf
     Bryanna M
+    Chris Brown
     Cody Parker
     D
     Ezra Theunissen
     flesk
     François Cantin
+    Giovanni Solimeno
     Hendrik Mans
     Jeppe Zapp
-    Johannes Wuensch
     Justin Arnold
     Justo Delgado Baudí
     Leandro Voltolino
-    Myles
-    Robert Podgorski
-    Scott Beacon
-    x1212
+    Lucien Boudy
+    Noah
+    Ryan Estes
+    Trent McPheron
 
 ## Silver donors
 
+    1D_Inc
+    Alessandro Senese
     Alex Barsukov
+    Anthony Bongiovanni
     Avencherus
     Bastian Böhm
     Ben Vercammen
+    Blair Allen
     Bryan Stevenson
+    Christian Baune
+    Christian Winter
     Collin Shooltz
+    Daniel Kaplan
+    David Cravens
+    David May
+    Diego Moreira Guimarães
+    Dominik Wetzel
+    Eric Martini
     Fabian Becker
     fengjiongmax
+    Frank C. Simmons
     Geequlim
     Gerrit Großkopf
     Guldoman
+    Gustav Dahlström
+    HardRound
     hatniX
     HeartBeast
     Heribert Hirth
     Hunter Jones
-    imekon
-    Jacob McKenney
+    Jaime Ruiz-Borau Vizárraga
+    Jeff Hungerford
+    Jesse Liles
+    joe513
     Jonathon
     Josh 'Cheeseness' Bush
+    Juan Negrier
+    JuDelCo
     Julian Murgia
     Juraj Móza
+    KC Chan
     Kevin Boyer
+    Kevin Kamper Meejach Petersen
     Klavdij Voncina
+    Kobi Malul
+    Linus Lind Lundgren
     Lisandro Lorea
     magodev
     Martin Novák
@@ -111,28 +155,39 @@ None so far, but your company could be the first! :)
     Matthew Valancy
     Matthias Hölzl
     Max R.R. Collada
+    mhilbrunner
     Michael Gringauz
+    Michael Tintiuc
     Mikael Olsson
+    MoM
     Moritz Laass
     nee
-    nvgrod
+    Neil Blakey-Milner
+    Nik Lee
+    Niko Leopold
+    Oleg Tyshchenko
     Pablo Seibelt
     Pan Ip
+    Pat LaBine
+    Patrick Nafarrete
     Paul Mason
     Paweł Kowal
+    Pete Goodwin
     Pietro Vertechi
     rayos
     Richman Stewart
     Roger Smith
+    Roman Tinkov
     Sam Van Campenhout
-    Sam Vila
     Sasori Olkof
+    Scott D. Yelich
     Sootstone
-    Tavo Tell
+    TheHappieCat
+    Theo Cranmore
+    Thomas Norman
     Tom Larrow
-    Trent McPheron
-    Troy Bonneau
     UltyX
+    Wout Standaert
     Xananax & karroffel
 
 ## Bronze donors
