@@ -40,6 +40,7 @@
 #include "core/project_settings.h"
 #include "editor/array_property_edit.h"
 #include "editor/create_dialog.h"
+#include "editor/dictionary_property_edit.h"
 #include "editor/editor_export.h"
 #include "editor/editor_file_system.h"
 #include "editor/editor_help.h"
@@ -415,7 +416,11 @@ bool CustomPropertyEditor::edit(Object *p_owner, const String &p_name, Variant::
 				menu->clear();
 				Vector<String> options = hint_text.split(",");
 				for (int i = 0; i < options.size(); i++) {
-					menu->add_item(options[i], i);
+					if (options[i].find(":") != -1) {
+						menu->add_item(options[i].get_slicec(':', 0), options[i].get_slicec(':', 1).to_int());
+					} else {
+						menu->add_item(options[i], i);
+					}
 				}
 				menu->set_position(get_position());
 				menu->popup();
@@ -1153,7 +1158,8 @@ void CustomPropertyEditor::_node_path_selected(NodePath p_path) {
 			node = Object::cast_to<Node>(owner);
 		else if (owner->is_class("ArrayPropertyEdit"))
 			node = Object::cast_to<ArrayPropertyEdit>(owner)->get_node();
-
+		else if (owner->is_class("DictionaryPropertyEdit"))
+			node = Object::cast_to<DictionaryPropertyEdit>(owner)->get_node();
 		if (!node) {
 			v = p_path;
 			emit_signal("variant_changed");
@@ -2095,6 +2101,23 @@ bool PropertyEditor::_is_property_different(const Variant &p_current, const Vari
 	return bool(Variant::evaluate(Variant::OP_NOT_EQUAL, p_current, p_orig));
 }
 
+bool PropertyEditor::_is_instanced_node_with_original_property_different(const String &p_name, TreeItem *item) {
+	bool mbi = _might_be_in_instance();
+	if (mbi) {
+		Variant vorig;
+		Dictionary d = item->get_metadata(0);
+		int usage = d.has("usage") ? int(int(d["usage"]) & (PROPERTY_USAGE_STORE_IF_NONONE | PROPERTY_USAGE_STORE_IF_NONZERO)) : 0;
+		if (_get_instanced_node_original_property(p_name, vorig) || usage) {
+			Variant v = obj->get(p_name);
+
+			if (_is_property_different(v, vorig, usage)) {
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
 TreeItem *PropertyEditor::find_item(TreeItem *p_item, const String &p_name) {
 
 	if (!p_item)
@@ -2352,6 +2375,10 @@ void PropertyEditor::_check_reload_status(const String &p_name, TreeItem *item) 
 			is_disabled = item->is_button_disabled(1, i);
 			break;
 		}
+	}
+
+	if (_is_instanced_node_with_original_property_different(p_name, item)) {
+		has_reload = true;
 	}
 
 	if (obj->call("property_can_revert", p_name).operator bool()) {
@@ -2659,13 +2686,14 @@ TreeItem *PropertyEditor::get_parent_node(String p_path, HashMap<String, TreeIte
 		item->set_editable(1, false);
 		item->set_selectable(1, subsection_selectable);
 
-		if (use_folding) {
+		if (use_folding) { //
 			if (!obj->editor_is_section_unfolded(p_path)) {
 				updating_folding = true;
 				item->set_collapsed(true);
 				updating_folding = false;
 			}
 			item->set_metadata(0, p_path);
+			foldable_property_cache.push_back(p_path);
 		}
 
 		if (item->get_parent() == root) {
@@ -2714,6 +2742,7 @@ void PropertyEditor::refresh() {
 void PropertyEditor::update_tree() {
 
 	tree->clear();
+	foldable_property_cache.clear();
 
 	if (!obj)
 		return;
@@ -3070,7 +3099,7 @@ void PropertyEditor::update_tree() {
 						item->set_text(1, type + " ID: " + itos(id));
 						item->add_button(1, get_icon("EditResource", "EditorIcons"));
 					} else {
-						item->set_text(1, "[Empty]");
+						item->set_text(1, TTR("[Empty]"));
 					}
 
 					if (has_icon(p.hint_string, "EditorIcons")) {
@@ -3211,9 +3240,14 @@ void PropertyEditor::update_tree() {
 			} break;
 			case Variant::DICTIONARY: {
 
+				Variant v = obj->get(p.name);
+
 				item->set_cell_mode(1, TreeItem::CELL_MODE_STRING);
-				item->set_editable(1, false);
-				item->set_text(1, obj->get(p.name).operator String());
+				item->set_text(1, String("Dictionary{") + itos(v.call("size")) + "}");
+				item->add_button(1, get_icon("EditResource", "EditorIcons"));
+
+				if (show_type_icons)
+					item->set_icon(0, get_icon("DictionaryData", "EditorIcons"));
 
 			} break;
 
@@ -3412,7 +3446,9 @@ void PropertyEditor::update_tree() {
 					type = p.hint_string;
 
 				RES res = obj->get(p.name).operator RefPtr();
-
+				if (type.begins_with("RES:") && type != "RES:") { // Remote resources
+					res = ResourceLoader::load(type.substr(4, type.length()));
+				}
 				Ref<EncodedObjectAsID> encoded = obj->get(p.name); //for debugger and remote tools
 
 				if (encoded.is_valid()) {
@@ -3423,6 +3459,7 @@ void PropertyEditor::update_tree() {
 					item->set_editable(1, true);
 
 				} else if (obj->get(p.name).get_type() == Variant::NIL || res.is_null()) {
+
 					item->set_text(1, "<null>");
 					item->set_icon(1, Ref<Texture>());
 					item->set_custom_as_button(1, false);
@@ -3493,20 +3530,9 @@ void PropertyEditor::update_tree() {
 
 		bool has_reload = false;
 
-		bool mbi = _might_be_in_instance();
-		if (mbi) {
-
-			Variant vorig;
-			Dictionary d = item->get_metadata(0);
-			int usage = d.has("usage") ? int(int(d["usage"]) & (PROPERTY_USAGE_STORE_IF_NONONE | PROPERTY_USAGE_STORE_IF_NONZERO)) : 0;
-			if (_get_instanced_node_original_property(p.name, vorig) || usage) {
-				Variant v = obj->get(p.name);
-
-				if (_is_property_different(v, vorig, usage)) {
-					item->add_button(1, get_icon("ReloadSmall", "EditorIcons"), 3);
-					has_reload = true;
-				}
-			}
+		if (_is_instanced_node_with_original_property_different(p.name, item)) {
+			item->add_button(1, get_icon("ReloadSmall", "EditorIcons"), 3);
+			has_reload = true;
 		}
 
 		if (obj->call("property_can_revert", p.name).operator bool()) {
@@ -3526,7 +3552,7 @@ void PropertyEditor::update_tree() {
 			}
 		}
 
-		if (mbi && !has_reload && item->get_cell_mode(1) == TreeItem::CELL_MODE_RANGE && item->get_text(1) == String()) {
+		if (_might_be_in_instance() && !has_reload && item->get_cell_mode(1) == TreeItem::CELL_MODE_RANGE && item->get_text(1) == String()) {
 			item->add_button(1, get_icon("ReloadEmpty", "EditorIcons"), 3, true);
 		}
 	}
@@ -3581,7 +3607,7 @@ void PropertyEditor::_edit_set(const String &p_name, const Variant &p_value, boo
 		}
 	}
 
-	if (!undo_redo || Object::cast_to<ArrayPropertyEdit>(obj)) { //kind of hacky
+	if (!undo_redo || Object::cast_to<ArrayPropertyEdit>(obj) || Object::cast_to<DictionaryPropertyEdit>(obj)) { //kind of hacky
 
 		obj->set(p_name, p_value);
 		if (p_refresh_all)
@@ -3714,8 +3740,8 @@ void PropertyEditor::_item_edited() {
 				_edit_set(name, item->get_text(1), refresh_all);
 			}
 		} break;
-			// math types
 
+		// math types
 		case Variant::VECTOR3: {
 
 		} break;
@@ -3979,8 +4005,20 @@ void PropertyEditor::_edit_button(Object *p_item, int p_column, int p_button) {
 
 			Ref<ArrayPropertyEdit> ape = memnew(ArrayPropertyEdit);
 			ape->edit(obj, n, ht, Variant::Type(t));
-
 			EditorNode::get_singleton()->push_item(ape.ptr());
+
+		} else if (t == Variant::DICTIONARY) {
+
+			Variant v = obj->get(n);
+
+			if (v.get_type() != t) {
+				Variant::CallError ce;
+				v = Variant::construct(Variant::Type(t), NULL, 0, ce);
+			}
+
+			Ref<DictionaryPropertyEdit> dpe = memnew(DictionaryPropertyEdit);
+			dpe->edit(obj, n);
+			EditorNode::get_singleton()->push_item(dpe.ptr());
 		}
 	}
 }
@@ -4185,6 +4223,25 @@ void PropertyEditor::set_use_folding(bool p_enable) {
 
 	use_folding = p_enable;
 	tree->set_hide_folding(false);
+}
+
+void PropertyEditor::collapse_all_folding() {
+	if (!obj)
+		return;
+	for (List<String>::Element *E = foldable_property_cache.front(); E; E = E->next()) {
+		obj->editor_set_section_unfold(E->get(), false);
+	}
+	update_tree();
+}
+
+void PropertyEditor::expand_all_folding() {
+
+	if (!obj)
+		return;
+	for (List<String>::Element *E = foldable_property_cache.front(); E; E = E->next()) {
+		obj->editor_set_section_unfold(E->get(), true);
+	}
+	update_tree();
 }
 
 PropertyEditor::PropertyEditor() {
@@ -4570,21 +4627,24 @@ SectionedPropertyEditor::~SectionedPropertyEditor() {
 
 double PropertyValueEvaluator::eval(const String &p_text) {
 
+	// If range value contains a comma replace it with dot (issue #6028)
+	const String &p_new_text = p_text.replace(",", ".");
+
 	if (!obj || !script_language)
-		return _default_eval(p_text);
+		return _default_eval(p_new_text);
 
 	Ref<Script> script = Ref<Script>(script_language->create_script());
-	script->set_source_code(_build_script(p_text));
+	script->set_source_code(_build_script(p_new_text));
 	Error err = script->reload();
 	if (err) {
-		print_line("[PropertyValueEvaluator] Error loading script for expression: " + p_text);
-		return _default_eval(p_text);
+		print_line("[PropertyValueEvaluator] Error loading script for expression: " + p_new_text);
+		return _default_eval(p_new_text);
 	}
 
 	Object dummy;
 	ScriptInstance *script_instance = script->instance_create(&dummy);
 	if (!script_instance)
-		return _default_eval(p_text);
+		return _default_eval(p_new_text);
 
 	Variant::CallError call_err;
 	Variant arg = obj;
@@ -4595,7 +4655,7 @@ double PropertyValueEvaluator::eval(const String &p_text) {
 	}
 	print_line("[PropertyValueEvaluator]: Error eval! Error code: " + itos(call_err.error));
 
-	return _default_eval(p_text);
+	return _default_eval(p_new_text);
 }
 
 void PropertyValueEvaluator::edit(Object *p_obj) {

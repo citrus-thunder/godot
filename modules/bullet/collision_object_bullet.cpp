@@ -50,8 +50,14 @@ void CollisionObjectBullet::ShapeWrapper::set_transform(const btTransform &p_tra
 	transform = p_transform;
 }
 
-CollisionObjectBullet::CollisionObjectBullet(Type p_type)
-	: RIDBullet(), space(NULL), type(p_type), collisionsEnabled(true), m_isStatic(false), bt_collision_object(NULL), body_scale(1., 1., 1.) {}
+CollisionObjectBullet::CollisionObjectBullet(Type p_type) :
+		RIDBullet(),
+		space(NULL),
+		type(p_type),
+		collisionsEnabled(true),
+		m_isStatic(false),
+		bt_collision_object(NULL),
+		body_scale(1., 1., 1.) {}
 
 CollisionObjectBullet::~CollisionObjectBullet() {
 	// Remove all overlapping
@@ -165,8 +171,9 @@ const btTransform &CollisionObjectBullet::get_transform__bullet() const {
 	return bt_collision_object->getWorldTransform();
 }
 
-RigidCollisionObjectBullet::RigidCollisionObjectBullet(Type p_type)
-	: CollisionObjectBullet(p_type), compoundShape(bulletnew(btCompoundShape(enableDynamicAabbTree, initialChildCapacity))) {
+RigidCollisionObjectBullet::RigidCollisionObjectBullet(Type p_type) :
+		CollisionObjectBullet(p_type),
+		compoundShape(bulletnew(btCompoundShape(enableDynamicAabbTree, initialChildCapacity))) {
 }
 
 RigidCollisionObjectBullet::~RigidCollisionObjectBullet() {
@@ -285,10 +292,10 @@ void RigidCollisionObjectBullet::on_shapes_changed() {
 	const int size = shapes.size();
 	for (i = 0; i < size; ++i) {
 		shpWrapper = &shapes[i];
-		if (!shpWrapper->bt_shape) {
-			shpWrapper->bt_shape = shpWrapper->shape->create_bt_shape();
-		}
 		if (shpWrapper->active) {
+			if (!shpWrapper->bt_shape) {
+				shpWrapper->bt_shape = shpWrapper->shape->create_bt_shape();
+			}
 			compoundShape->addChildShape(shpWrapper->transform, shpWrapper->bt_shape);
 		} else {
 			compoundShape->addChildShape(shpWrapper->transform, BulletPhysicsServer::get_empty_shape());

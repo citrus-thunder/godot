@@ -191,11 +191,12 @@ void Camera::_update_camera() {
 		get_viewport()->_camera_transform_changed_notify();
 	*/
 
-	if (is_inside_tree() && is_current()) {
-		get_viewport()->_camera_transform_changed_notify();
-	}
+	if (!is_inside_tree() || get_tree()->is_node_being_edited(this) || !is_current())
+		return;
 
-	if (is_current() && get_world().is_valid()) {
+	get_viewport()->_camera_transform_changed_notify();
+
+	if (get_world().is_valid()) {
 		get_world()->_update_camera(this);
 	}
 }
@@ -649,7 +650,7 @@ Camera::Camera() {
 	current = false;
 	force_change = false;
 	mode = PROJECTION_PERSPECTIVE;
-	set_perspective(65.0, 0.1, 100.0);
+	set_perspective(70.0, 0.05, 100.0);
 	keep_aspect = KEEP_HEIGHT;
 	layers = 0xfffff;
 	v_offset = 0;

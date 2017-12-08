@@ -116,8 +116,8 @@ public:
 		virtual void base_changed() = 0;
 		virtual void base_material_changed() = 0;
 
-		InstanceBase()
-			: dependency_item(this) {
+		InstanceBase() :
+				dependency_item(this) {
 
 			base_type = VS::INSTANCE_NONE;
 			cast_shadows = VS::SHADOW_CASTING_SETTING_ON;
@@ -192,6 +192,8 @@ public:
 	virtual void texture_set_detect_normal_callback(RID p_texture, VisualServer::TextureDetectCallback p_callback, void *p_userdata) = 0;
 
 	virtual void textures_keep_original(bool p_enable) = 0;
+
+	virtual void texture_set_proxy(RID p_proxy, RID p_base) = 0;
 
 	/* SKY API */
 
@@ -1027,7 +1029,7 @@ public:
 	virtual void restore_render_target() = 0;
 	virtual void clear_render_target(const Color &p_color) = 0;
 	virtual void blit_render_target_to_screen(RID p_render_target, const Rect2 &p_screen_rect, int p_screen = 0) = 0;
-	virtual void end_frame() = 0;
+	virtual void end_frame(bool p_swap_buffers) = 0;
 	virtual void finalize() = 0;
 
 	virtual ~Rasterizer() {}

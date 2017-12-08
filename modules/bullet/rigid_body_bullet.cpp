@@ -176,9 +176,9 @@ PhysicsDirectSpaceState *BulletPhysicsDirectBodyState::get_space_state() {
 	return body->get_space()->get_direct_state();
 }
 
-RigidBodyBullet::KinematicUtilities::KinematicUtilities(RigidBodyBullet *p_owner)
-	: owner(p_owner),
-	  safe_margin(0.001) {
+RigidBodyBullet::KinematicUtilities::KinematicUtilities(RigidBodyBullet *p_owner) :
+		owner(p_owner),
+		safe_margin(0.001) {
 }
 
 RigidBodyBullet::KinematicUtilities::~KinematicUtilities() {
@@ -250,22 +250,22 @@ void RigidBodyBullet::KinematicUtilities::just_delete_shapes(int new_size) {
 	shapes.resize(new_size);
 }
 
-RigidBodyBullet::RigidBodyBullet()
-	: RigidCollisionObjectBullet(CollisionObjectBullet::TYPE_RIGID_BODY),
-	  kinematic_utilities(NULL),
-	  gravity_scale(1),
-	  mass(1),
-	  linearDamp(0),
-	  angularDamp(0),
-	  can_sleep(true),
-	  force_integration_callback(NULL),
-	  isTransformChanged(false),
-	  maxCollisionsDetection(0),
-	  collisionsCount(0),
-	  maxAreasWhereIam(10),
-	  areaWhereIamCount(0),
-	  countGravityPointSpaces(0),
-	  isScratchedSpaceOverrideModificator(false) {
+RigidBodyBullet::RigidBodyBullet() :
+		RigidCollisionObjectBullet(CollisionObjectBullet::TYPE_RIGID_BODY),
+		kinematic_utilities(NULL),
+		gravity_scale(1),
+		mass(1),
+		linearDamp(0),
+		angularDamp(0),
+		can_sleep(true),
+		force_integration_callback(NULL),
+		isTransformChanged(false),
+		maxCollisionsDetection(0),
+		collisionsCount(0),
+		maxAreasWhereIam(10),
+		areaWhereIamCount(0),
+		countGravityPointSpaces(0),
+		isScratchedSpaceOverrideModificator(false) {
 
 	godotMotionState = bulletnew(GodotMotionState(this));
 
@@ -511,12 +511,14 @@ void RigidBodyBullet::set_mode(PhysicsServer::BodyMode p_mode) {
 			mode = PhysicsServer::BODY_MODE_RIGID;
 			set_axis_lock(axis_lock); // Reload axis lock
 			_internal_set_mass(0 == mass ? 1 : mass);
+			scratch_space_override_modificator();
 			break;
 		}
 		case PhysicsServer::BODY_MODE_CHARACTER: {
 			mode = PhysicsServer::BODY_MODE_CHARACTER;
 			set_axis_lock(axis_lock); // Reload axis lock
 			_internal_set_mass(0 == mass ? 1 : mass);
+			scratch_space_override_modificator();
 			break;
 		}
 	}

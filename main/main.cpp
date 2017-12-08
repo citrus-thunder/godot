@@ -168,7 +168,6 @@ static String get_full_version_string() {
 }
 
 //#define DEBUG_INIT
-
 #ifdef DEBUG_INIT
 #define MAIN_PRINT(m_txt) print_line(m_txt)
 #else
@@ -177,7 +176,7 @@ static String get_full_version_string() {
 
 void Main::print_help(const char *p_binary) {
 
-	print_line(String(_MKSTR(VERSION_NAME)) + " v" + get_full_version_string() + " - https://godotengine.org");
+	print_line(String(VERSION_NAME) + " v" + get_full_version_string() + " - https://godotengine.org");
 	OS::get_singleton()->print("(c) 2007-2017 Juan Linietsky, Ariel Manzur.\n");
 	OS::get_singleton()->print("(c) 2014-2017 Godot Engine contributors.\n");
 	OS::get_singleton()->print("\n");
@@ -289,8 +288,6 @@ Error Main::setup(const char *execpath, int argc, char *argv[], bool p_second_ph
 	input_map = memnew(InputMap);
 
 	register_core_settings(); //here globals is present
-
-	OS::get_singleton()->initialize_logger();
 
 	translation_server = memnew(TranslationServer);
 	performance = memnew(Performance);
@@ -427,6 +424,7 @@ Error Main::setup(const char *execpath, int argc, char *argv[], bool p_second_ph
 		} else if (I->get() == "-m" || I->get() == "--maximized") { // force maximized window
 
 			init_maximized = true;
+			video_mode.maximized = true;
 		} else if (I->get() == "-w" || I->get() == "--windowed") { // force windowed window
 
 			init_windowed = true;
@@ -744,10 +742,20 @@ Error Main::setup(const char *execpath, int argc, char *argv[], bool p_second_ph
 #endif
 	}
 
+	GLOBAL_DEF("logging/file_logging/enable_file_logging", false);
+	GLOBAL_DEF("logging/file_logging/log_path", "user://logs/log.txt");
+	GLOBAL_DEF("logging/file_logging/max_log_files", 10);
+	if (FileAccess::get_create_func(FileAccess::ACCESS_USERDATA) && GLOBAL_GET("logging/file_logging/enable_file_logging")) {
+		String base_path = GLOBAL_GET("logging/file_logging/log_path");
+		int max_files = GLOBAL_GET("logging/file_logging/max_log_files");
+		OS::get_singleton()->add_logger(memnew(RotatedFileLogger(base_path, max_files)));
+	}
+
 	if (editor) {
 		Engine::get_singleton()->set_editor_hint(true);
 		main_args.push_back("--editor");
 		init_maximized = true;
+		video_mode.maximized = true;
 		use_custom_res = false;
 	}
 
@@ -823,8 +831,6 @@ Error Main::setup(const char *execpath, int argc, char *argv[], bool p_second_ph
 	OS::get_singleton()->_keep_screen_on = GLOBAL_DEF("display/window/energy_saving/keep_screen_on", true);
 	if (rtm == -1) {
 		rtm = GLOBAL_DEF("rendering/threads/thread_model", OS::RENDER_THREAD_SAFE);
-		if (rtm >= 1) //hack for now
-			rtm = 1;
 	}
 
 	if (rtm >= 0 && rtm < 3) {
@@ -902,6 +908,9 @@ Error Main::setup(const char *execpath, int argc, char *argv[], bool p_second_ph
 	if (frame_delay == 0) {
 		frame_delay = GLOBAL_DEF("application/run/frame_delay_msec", 0);
 	}
+
+	OS::get_singleton()->set_low_processor_usage_mode(GLOBAL_DEF("application/run/low_processor_mode", false));
+	OS::get_singleton()->set_low_processor_usage_mode_sleep_usec(GLOBAL_DEF("application/run/low_processor_mode_sleep_usec", 8000));
 
 	Engine::get_singleton()->set_frame_delay(frame_delay);
 
@@ -1766,8 +1775,7 @@ bool Main::iteration() {
 		return exit;
 
 	if (OS::get_singleton()->is_in_low_processor_usage_mode() || !OS::get_singleton()->can_draw())
-		//OS::get_singleton()->delay_usec(16600); //apply some delay to force idle time (results in about 60 FPS max)
-		OS::get_singleton()->delay_usec(1000); //apply some delay to force idle time (results in about 60 FPS max)
+		OS::get_singleton()->delay_usec(OS::get_singleton()->get_low_processor_usage_mode_sleep_usec()); //apply some delay to force idle time (results in about 60 FPS max)
 	else {
 		uint32_t frame_delay = Engine::get_singleton()->get_frame_delay();
 		if (frame_delay)

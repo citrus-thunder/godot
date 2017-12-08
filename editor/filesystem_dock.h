@@ -128,10 +128,12 @@ private:
 		String path;
 		bool is_file;
 
-		FileOrFolder()
-			: path(""), is_file(false) {}
-		FileOrFolder(const String &p_path, bool p_is_file)
-			: path(p_path), is_file(p_is_file) {}
+		FileOrFolder() :
+				path(""),
+				is_file(false) {}
+		FileOrFolder(const String &p_path, bool p_is_file) :
+				path(p_path),
+				is_file(p_is_file) {}
 	};
 	FileOrFolder to_rename;
 	Vector<FileOrFolder> to_move;
@@ -192,6 +194,7 @@ private:
 
 	void _dir_rmb_pressed(const Vector2 &p_pos);
 	void _files_list_rmb_select(int p_item, const Vector2 &p_pos);
+	void _rmb_pressed(const Vector2 &p_pos);
 
 	struct FileInfo {
 		String name;

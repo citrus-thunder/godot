@@ -586,6 +586,38 @@ void ScriptEditor::_close_docs_tab() {
 	}
 }
 
+void ScriptEditor::_copy_script_path() {
+	ScriptEditorBase *se = Object::cast_to<ScriptEditorBase>(tab_container->get_child(tab_container->get_current_tab()));
+	Ref<Script> script = se->get_edited_script();
+	OS::get_singleton()->set_clipboard(script->get_path());
+}
+
+void ScriptEditor::_close_other_tabs() {
+
+	int child_count = tab_container->get_child_count();
+	int current_idx = tab_container->get_current_tab();
+	for (int i = child_count - 1; i >= 0; i--) {
+
+		if (i == current_idx) {
+			continue;
+		}
+
+		tab_container->set_current_tab(i);
+		ScriptEditorBase *se = Object::cast_to<ScriptEditorBase>(tab_container->get_child(i));
+
+		if (se) {
+
+			// Maybe there are unsaved changes
+			if (se->is_unsaved()) {
+				_ask_close_current_unsaved_tab(se);
+				continue;
+			}
+		}
+
+		_close_current_tab();
+	}
+}
+
 void ScriptEditor::_close_all_tabs() {
 
 	int child_count = tab_container->get_child_count();
@@ -855,7 +887,7 @@ void ScriptEditor::_menu_option(int p_option) {
 			file_dialog_option = FILE_SAVE_THEME_AS;
 			file_dialog->clear_filters();
 			file_dialog->add_filter("*.tet");
-			file_dialog->set_current_path(EditorSettings::get_singleton()->get_settings_path() + "/text_editor_themes/" + EditorSettings::get_singleton()->get("text_editor/theme/color_theme"));
+			file_dialog->set_current_path(EditorSettings::get_singleton()->get_text_editor_themes_dir().plus_file(EditorSettings::get_singleton()->get("text_editor/theme/color_theme")));
 			file_dialog->popup_centered_ratio();
 			file_dialog->set_title(TTR("Save Theme As.."));
 		} break;
@@ -1000,8 +1032,14 @@ void ScriptEditor::_menu_option(int p_option) {
 					_close_current_tab();
 				}
 			} break;
+			case FILE_COPY_PATH: {
+				_copy_script_path();
+			} break;
 			case CLOSE_DOCS: {
 				_close_docs_tab();
+			} break;
+			case CLOSE_OTHER_TABS: {
+				_close_other_tabs();
 			} break;
 			case CLOSE_ALL: {
 				_close_all_tabs();
@@ -1078,6 +1116,9 @@ void ScriptEditor::_menu_option(int p_option) {
 				case CLOSE_DOCS: {
 					_close_docs_tab();
 				} break;
+				case CLOSE_OTHER_TABS: {
+					_close_other_tabs();
+				} break;
 				case CLOSE_ALL: {
 					_close_all_tabs();
 				} break;
@@ -1119,6 +1160,7 @@ void ScriptEditor::_notification(int p_what) {
 			editor->connect("script_add_function_request", this, "_add_callback");
 			editor->connect("resource_saved", this, "_res_saved_callback");
 			script_list->connect("item_selected", this, "_script_selected");
+
 			members_overview->connect("item_selected", this, "_members_overview_selected");
 			help_overview->connect("item_selected", this, "_help_overview_selected");
 			script_split->connect("dragged", this, "_script_split_dragged");
@@ -2139,7 +2181,10 @@ void ScriptEditor::_make_script_list_context_menu() {
 		context_menu->add_shortcut(ED_GET_SHORTCUT("script_editor/save"), FILE_SAVE);
 		context_menu->add_shortcut(ED_GET_SHORTCUT("script_editor/save_as"), FILE_SAVE_AS);
 		context_menu->add_shortcut(ED_GET_SHORTCUT("script_editor/close_file"), FILE_CLOSE);
+		context_menu->add_shortcut(ED_GET_SHORTCUT("script_editor/close_all"), CLOSE_ALL);
+		context_menu->add_shortcut(ED_GET_SHORTCUT("script_editor/close_other_tabs"), CLOSE_OTHER_TABS);
 		context_menu->add_separator();
+		context_menu->add_shortcut(ED_GET_SHORTCUT("script_editor/copy_path"), FILE_COPY_PATH);
 		context_menu->add_shortcut(ED_GET_SHORTCUT("script_editor/reload_script_soft"), FILE_TOOL_RELOAD_SOFT);
 
 		Ref<Script> scr = se->get_edited_script();
@@ -2458,6 +2503,7 @@ void ScriptEditor::_bind_methods() {
 	ClassDB::bind_method("_close_discard_current_tab", &ScriptEditor::_close_discard_current_tab);
 	ClassDB::bind_method("_close_docs_tab", &ScriptEditor::_close_docs_tab);
 	ClassDB::bind_method("_close_all_tabs", &ScriptEditor::_close_all_tabs);
+	ClassDB::bind_method("_close_other_tabs", &ScriptEditor::_close_other_tabs);
 	ClassDB::bind_method("_open_recent_script", &ScriptEditor::_open_recent_script);
 	ClassDB::bind_method("_editor_play", &ScriptEditor::_editor_play);
 	ClassDB::bind_method("_editor_pause", &ScriptEditor::_editor_pause);
@@ -2471,6 +2517,7 @@ void ScriptEditor::_bind_methods() {
 	ClassDB::bind_method("_help_search", &ScriptEditor::_help_search);
 	ClassDB::bind_method("_help_index", &ScriptEditor::_help_index);
 	ClassDB::bind_method("_save_history", &ScriptEditor::_save_history);
+	ClassDB::bind_method("_copy_script_path", &ScriptEditor::_copy_script_path);
 
 	ClassDB::bind_method("_breaked", &ScriptEditor::_breaked);
 	ClassDB::bind_method("_show_debugger", &ScriptEditor::_show_debugger);
@@ -2539,7 +2586,6 @@ ScriptEditor::ScriptEditor(EditorNode *p_editor) {
 	script_list->set_v_size_flags(SIZE_EXPAND_FILL);
 	script_split->set_split_offset(140);
 	//list_split->set_split_offset(500);
-
 	_sort_list_on_update = true;
 	script_list->connect("gui_input", this, "_script_list_gui_input");
 	script_list->set_allow_rmb_select(true);
@@ -2591,6 +2637,7 @@ ScriptEditor::ScriptEditor(EditorNode *p_editor) {
 	file_menu->get_popup()->add_shortcut(ED_SHORTCUT("script_editor/save_all", TTR("Save All"), KEY_MASK_CMD | KEY_MASK_SHIFT | KEY_MASK_ALT | KEY_S), FILE_SAVE_ALL);
 	file_menu->get_popup()->add_separator();
 	file_menu->get_popup()->add_shortcut(ED_SHORTCUT("script_editor/reload_script_soft", TTR("Soft Reload Script"), KEY_MASK_CMD | KEY_MASK_SHIFT | KEY_R), FILE_TOOL_RELOAD_SOFT);
+	file_menu->get_popup()->add_shortcut(ED_SHORTCUT("script_editor/copy_path", TTR("Copy Script Path")), FILE_COPY_PATH);
 	file_menu->get_popup()->add_separator();
 
 	file_menu->get_popup()->add_shortcut(ED_SHORTCUT("script_editor/history_previous", TTR("History Prev"), KEY_MASK_ALT | KEY_LEFT), WINDOW_PREV);
@@ -2604,6 +2651,7 @@ ScriptEditor::ScriptEditor(EditorNode *p_editor) {
 	file_menu->get_popup()->add_shortcut(ED_SHORTCUT("script_editor/close_docs", TTR("Close Docs")), CLOSE_DOCS);
 	file_menu->get_popup()->add_shortcut(ED_SHORTCUT("script_editor/close_file", TTR("Close"), KEY_MASK_CMD | KEY_W), FILE_CLOSE);
 	file_menu->get_popup()->add_shortcut(ED_SHORTCUT("script_editor/close_all", TTR("Close All")), CLOSE_ALL);
+	file_menu->get_popup()->add_shortcut(ED_SHORTCUT("script_editor/close_other_tabs", TTR("Close Other Tabs")), CLOSE_OTHER_TABS);
 	file_menu->get_popup()->add_separator();
 	file_menu->get_popup()->add_shortcut(ED_SHORTCUT("script_editor/run_file", TTR("Run"), KEY_MASK_CMD | KEY_MASK_SHIFT | KEY_X), FILE_RUN);
 	file_menu->get_popup()->add_separator();
@@ -2861,7 +2909,7 @@ ScriptEditorPlugin::ScriptEditorPlugin(EditorNode *p_node) {
 	EDITOR_DEF("text_editor/open_scripts/script_temperature_enabled", true);
 	EDITOR_DEF("text_editor/open_scripts/highlight_current_script", true);
 	EDITOR_DEF("text_editor/open_scripts/script_temperature_history_size", 15);
-	EDITOR_DEF("text_editor/open_scripts/current_script_background_color", Color(1, 1, 1, 0.5));
+	EDITOR_DEF("text_editor/open_scripts/current_script_background_color", Color(1, 1, 1, 0.3));
 	EDITOR_DEF("text_editor/open_scripts/group_help_pages", true);
 	EditorSettings::get_singleton()->add_property_hint(PropertyInfo(Variant::INT, "text_editor/open_scripts/sort_scripts_by", PROPERTY_HINT_ENUM, "Name,Path"));
 	EDITOR_DEF("text_editor/open_scripts/sort_scripts_by", 0);

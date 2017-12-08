@@ -46,6 +46,7 @@ class Light : public VisualInstance {
 public:
 	enum Param {
 		PARAM_ENERGY = VS::LIGHT_PARAM_ENERGY,
+		PARAM_INDIRECT_ENERGY = VS::LIGHT_PARAM_INDIRECT_ENERGY,
 		PARAM_SPECULAR = VS::LIGHT_PARAM_SPECULAR,
 		PARAM_RANGE = VS::LIGHT_PARAM_RANGE,
 		PARAM_ATTENUATION = VS::LIGHT_PARAM_ATTENUATION,
@@ -207,8 +208,8 @@ protected:
 	static void _bind_methods();
 
 public:
-	SpotLight()
-		: Light(VisualServer::LIGHT_SPOT) {}
+	SpotLight() :
+			Light(VisualServer::LIGHT_SPOT) {}
 };
 
 #endif

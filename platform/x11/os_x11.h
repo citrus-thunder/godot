@@ -48,6 +48,9 @@
 #include <X11/Xlib.h>
 #include <X11/extensions/Xrandr.h>
 #include <X11/keysym.h>
+#ifdef TOUCH_ENABLED
+#include <X11/extensions/XInput2.h>
+#endif
 
 // Hints for X11 fullscreen
 typedef struct {
@@ -117,6 +120,14 @@ class OS_X11 : public OS_Unix {
 	Point2i last_click_pos;
 	uint64_t last_click_ms;
 	uint32_t last_button_state;
+#ifdef TOUCH_ENABLED
+	struct {
+		int opcode;
+		Vector<int> devices;
+		XIEventMask event_mask;
+		Map<int, Vector2> state;
+	} touch;
+#endif
 
 	unsigned int get_mouse_button_state(unsigned int p_x11_state);
 	void get_key_modifier_state(unsigned int p_x11_state, Ref<InputEventWithModifiers> state);
@@ -187,6 +198,9 @@ protected:
 
 	virtual void set_main_loop(MainLoop *p_main_loop);
 
+	void _window_changed(XEvent *xevent);
+	static int _check_window_events(Display *display, XEvent *xevent, char *arg);
+
 public:
 	virtual String get_name();
 
@@ -212,6 +226,10 @@ public:
 	virtual void release_rendering_thread();
 	virtual void make_rendering_thread();
 	virtual void swap_buffers();
+
+	virtual String get_config_path() const;
+	virtual String get_data_path() const;
+	virtual String get_cache_path() const;
 
 	virtual String get_system_dir(SystemDir p_dir) const;
 

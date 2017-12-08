@@ -1434,7 +1434,7 @@ void VisualScriptInstance::_dependency_step(VisualScriptNodeInstance *node, int 
 	if (!node->dependencies.empty()) {
 
 		int dc = node->dependencies.size();
-		VisualScriptNodeInstance **deps = node->dependencies.ptr();
+		VisualScriptNodeInstance **deps = node->dependencies.ptrw();
 
 		for (int i = 0; i < dc; i++) {
 
@@ -1526,7 +1526,7 @@ Variant VisualScriptInstance::_call_internal(const StringName &p_method, void *p
 			if (!node->dependencies.empty()) {
 
 				int dc = node->dependencies.size();
-				VisualScriptNodeInstance **deps = node->dependencies.ptr();
+				VisualScriptNodeInstance **deps = node->dependencies.ptrw();
 
 				for (int i = 0; i < dc; i++) {
 
@@ -1626,7 +1626,7 @@ Variant VisualScriptInstance::_call_internal(const StringName &p_method, void *p
 				state->flow_stack_pos = flow_stack_pos;
 				state->stack.resize(p_stack_size);
 				state->pass = p_pass;
-				copymem(state->stack.ptr(), p_stack, p_stack_size);
+				copymem(state->stack.ptrw(), p_stack, p_stack_size);
 				//step 2, run away, return directly
 				r_error.error = Variant::CallError::CALL_OK;
 
@@ -2277,7 +2277,7 @@ Variant VisualScriptFunctionState::_signal_callback(const Variant **p_args, int 
 
 	*working_mem = args; //arguments go to working mem.
 
-	Variant ret = instance->_call_internal(function, stack.ptr(), stack.size(), node, flow_stack_pos, pass, true, r_error);
+	Variant ret = instance->_call_internal(function, stack.ptrw(), stack.size(), node, flow_stack_pos, pass, true, r_error);
 	function = StringName(); //invalidate
 	return ret;
 }
@@ -2289,7 +2289,7 @@ void VisualScriptFunctionState::connect_to_signal(Object *p_obj, const String &p
 		binds.push_back(p_binds[i]);
 	}
 	binds.push_back(Ref<VisualScriptFunctionState>(this)); //add myself on the back to avoid dying from unreferencing
-	p_obj->connect(p_signal, this, "_signal_callback", binds);
+	p_obj->connect(p_signal, this, "_signal_callback", binds, CONNECT_ONESHOT);
 }
 
 bool VisualScriptFunctionState::is_valid() const {
@@ -2319,7 +2319,7 @@ Variant VisualScriptFunctionState::resume(Array p_args) {
 
 	*working_mem = p_args; //arguments go to working mem.
 
-	Variant ret = instance->_call_internal(function, stack.ptr(), stack.size(), node, flow_stack_pos, pass, true, r_error);
+	Variant ret = instance->_call_internal(function, stack.ptrw(), stack.size(), node, flow_stack_pos, pass, true, r_error);
 	function = StringName(); //invalidate
 	return ret;
 }

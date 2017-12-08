@@ -47,6 +47,7 @@
 #include "servers/visual/visual_server_wrap_mt.h"
 #include "stream_peer_winsock.h"
 #include "tcp_server_winsock.h"
+#include "version_generated.gen.h"
 #include "windows_terminal_logger.h"
 
 #include <process.h>
@@ -67,6 +68,19 @@ __attribute__((visibility("default"))) DWORD NvOptimusEnablement = 0x00000001;
 #ifndef WM_TOUCH
 #define WM_TOUCH 576
 #endif
+
+static String format_error_message(DWORD id) {
+
+	LPWSTR messageBuffer = NULL;
+	size_t size = FormatMessageW(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+			NULL, id, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPWSTR)&messageBuffer, 0, NULL);
+
+	String msg = "Error " + itos(id) + ": " + String(messageBuffer, size);
+
+	LocalFree(messageBuffer);
+
+	return msg;
+}
 
 extern HINSTANCE godot_hinstance;
 
@@ -143,7 +157,7 @@ int OS_Windows::get_video_driver_count() const {
 }
 const char *OS_Windows::get_video_driver_name(int p_driver) const {
 
-	return "GLES2";
+	return "GLES3";
 }
 
 int OS_Windows::get_audio_driver_count() const {
@@ -200,15 +214,6 @@ void OS_Windows::initialize_core() {
 	cursor_shape = CURSOR_ARROW;
 }
 
-void OS_Windows::initialize_logger() {
-	Vector<Logger *> loggers;
-	loggers.push_back(memnew(WindowsTerminalLogger));
-	// FIXME: Reenable once we figure out how to get this properly in user://
-	// instead of littering the user's working dirs (res:// + pwd) with log files (GH-12277)
-	//loggers.push_back(memnew(RotatedFileLogger("user://logs/log.txt")));
-	_set_logger(memnew(CompositeLogger(loggers)));
-}
-
 bool OS_Windows::can_draw() const {
 
 	return !minimized;
@@ -218,7 +223,17 @@ bool OS_Windows::can_draw() const {
 #define SIGNATURE_MASK 0xFFFFFF00
 #define IsPenEvent(dw) (((dw)&SIGNATURE_MASK) == MI_WP_SIGNATURE)
 
-void OS_Windows::_touch_event(bool p_pressed, int p_x, int p_y, int idx) {
+void OS_Windows::_touch_event(bool p_pressed, float p_x, float p_y, int idx) {
+
+	// Defensive
+	if (touch_state.has(idx) == p_pressed)
+		return;
+
+	if (p_pressed) {
+		touch_state.insert(idx, Vector2(p_x, p_y));
+	} else {
+		touch_state.erase(idx);
+	}
 
 	Ref<InputEventScreenTouch> event;
 	event.instance();
@@ -231,7 +246,17 @@ void OS_Windows::_touch_event(bool p_pressed, int p_x, int p_y, int idx) {
 	}
 };
 
-void OS_Windows::_drag_event(int p_x, int p_y, int idx) {
+void OS_Windows::_drag_event(float p_x, float p_y, int idx) {
+
+	Map<int, Vector2>::Element *curr = touch_state.find(idx);
+	// Defensive
+	if (!curr)
+		return;
+
+	if (curr->get() == Vector2(p_x, p_y))
+		return;
+
+	curr->get() = Vector2(p_x, p_y);
 
 	Ref<InputEventScreenDrag> event;
 	event.instance();
@@ -261,6 +286,13 @@ LRESULT OS_Windows::WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
 			if (mouse_mode == MOUSE_MODE_CAPTURED || mouse_mode == MOUSE_MODE_CONFINED) {
 				ReleaseCapture();
 			}
+
+			// Release every touch to avoid sticky points
+			for (Map<int, Vector2>::Element *E = touch_state.front(); E; E = E->next()) {
+				_touch_event(false, E->get().x, E->get().y, E->key());
+			}
+			touch_state.clear();
+
 			break;
 		}
 		case WM_ACTIVATE: // Watch For Window Activate Message
@@ -664,7 +696,6 @@ LRESULT OS_Windows::WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
 			print_line("input lang change");
 		} break;
 
-#if WINVER >= 0x0601 // for windows 7
 		case WM_TOUCH: {
 
 			BOOL bHandled = FALSE;
@@ -677,10 +708,10 @@ LRESULT OS_Windows::WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
 						//do something with each touch input entry
 						if (ti.dwFlags & TOUCHEVENTF_MOVE) {
 
-							_drag_event(ti.x / 100, ti.y / 100, ti.dwID);
+							_drag_event(ti.x / 100.0f, ti.y / 100.0f, ti.dwID);
 						} else if (ti.dwFlags & (TOUCHEVENTF_UP | TOUCHEVENTF_DOWN)) {
 
-							_touch_event(ti.dwFlags & TOUCHEVENTF_DOWN != 0, ti.x / 100, ti.y / 100, ti.dwID);
+							_touch_event(ti.dwFlags & TOUCHEVENTF_DOWN, ti.x / 100.0f, ti.y / 100.0f, ti.dwID);
 						};
 					}
 					bHandled = TRUE;
@@ -698,7 +729,6 @@ LRESULT OS_Windows::WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
 
 		} break;
 
-#endif
 		case WM_DEVICECHANGE: {
 
 			joypad->probe_joypads();
@@ -1052,12 +1082,6 @@ void OS_Windows::initialize(const VideoMode &p_desired, int p_video_driver, int 
 		visual_server = memnew(VisualServerWrapMT(visual_server, get_render_thread_mode() == RENDER_SEPARATE_THREAD));
 	}
 
-	if (!is_no_window_mode_enabled()) {
-		ShowWindow(hWnd, SW_SHOW); // Show The Window
-		SetForegroundWindow(hWnd); // Slightly Higher Priority
-		SetFocus(hWnd); // Sets Keyboard Focus To
-	}
-
 	/*
 		DEVMODE dmScreenSettings;					// Device Mode
 		memset(&dmScreenSettings,0,sizeof(dmScreenSettings));		// Makes Sure Memory's Cleared
@@ -1088,13 +1112,19 @@ void OS_Windows::initialize(const VideoMode &p_desired, int p_video_driver, int 
 	tme.dwHoverTime = HOVER_DEFAULT;
 	TrackMouseEvent(&tme);
 
-	//RegisterTouchWindow(hWnd, 0); // Windows 7
+	RegisterTouchWindow(hWnd, 0);
 
-	_ensure_data_dir();
+	_ensure_user_data_dir();
 
 	DragAcceptFiles(hWnd, true);
 
 	move_timer_id = 1;
+
+	if (!is_no_window_mode_enabled()) {
+		ShowWindow(hWnd, SW_SHOW); // Show The Window
+		SetForegroundWindow(hWnd); // Slightly Higher Priority
+		SetFocus(hWnd); // Sets Keyboard Focus To
+	}
 }
 
 void OS_Windows::set_clipboard(const String &p_text) {
@@ -1196,6 +1226,7 @@ void OS_Windows::finalize() {
 
 	memdelete(joypad);
 	memdelete(input);
+	touch_state.clear();
 
 	visual_server->finish();
 	memdelete(visual_server);
@@ -1596,10 +1627,29 @@ void OS_Windows::_update_window_style(bool repaint) {
 	}
 }
 
-Error OS_Windows::open_dynamic_library(const String p_path, void *&p_library_handle) {
-	p_library_handle = (void *)LoadLibrary(p_path.utf8().get_data());
+Error OS_Windows::open_dynamic_library(const String p_path, void *&p_library_handle, bool p_also_set_library_path) {
+
+	typedef DLL_DIRECTORY_COOKIE(WINAPI * PAddDllDirectory)(PCWSTR);
+	typedef BOOL(WINAPI * PRemoveDllDirectory)(DLL_DIRECTORY_COOKIE);
+
+	PAddDllDirectory add_dll_directory = (PAddDllDirectory)GetProcAddress(GetModuleHandle("kernel32.dll"), "AddDllDirectory");
+	PRemoveDllDirectory remove_dll_directory = (PRemoveDllDirectory)GetProcAddress(GetModuleHandle("kernel32.dll"), "RemoveDllDirectory");
+
+	bool has_dll_directory_api = ((add_dll_directory != NULL) && (remove_dll_directory != NULL));
+	DLL_DIRECTORY_COOKIE cookie;
+
+	if (p_also_set_library_path && has_dll_directory_api) {
+		cookie = add_dll_directory(p_path.get_base_dir().c_str());
+	}
+
+	p_library_handle = (void *)LoadLibraryExW(p_path.c_str(), NULL, (p_also_set_library_path && has_dll_directory_api) ? LOAD_LIBRARY_SEARCH_DEFAULT_DIRS : 0);
+
+	if (p_also_set_library_path && has_dll_directory_api) {
+		remove_dll_directory(cookie);
+	}
+
 	if (!p_library_handle) {
-		ERR_EXPLAIN("Can't open dynamic library: " + p_path + ". Error: " + String::num(GetLastError()));
+		ERR_EXPLAIN("Can't open dynamic library: " + p_path + ". Error: " + format_error_message(GetLastError()));
 		ERR_FAIL_V(ERR_CANT_OPEN);
 	}
 	return OK;
@@ -1851,7 +1901,7 @@ Error OS_Windows::execute(const String &p_path, const List<String> &p_arguments,
 	modstr.resize(cmdline.size());
 	for (int i = 0; i < cmdline.size(); i++)
 		modstr[i] = cmdline[i];
-	int ret = CreateProcessW(NULL, modstr.ptr(), NULL, NULL, 0, NORMAL_PRIORITY_CLASS, NULL, NULL, si_w, &pi.pi);
+	int ret = CreateProcessW(NULL, modstr.ptrw(), NULL, NULL, 0, NORMAL_PRIORITY_CLASS, NULL, NULL, si_w, &pi.pi);
 	ERR_FAIL_COND_V(ret == 0, ERR_CANT_FORK);
 
 	if (p_blocking) {
@@ -1962,7 +2012,7 @@ void OS_Windows::set_icon(const Ref<Image> &p_icon) {
 
 bool OS_Windows::has_environment(const String &p_var) const {
 
-	return getenv(p_var.utf8().get_data()) != NULL;
+	return _wgetenv(p_var.c_str()) != NULL;
 };
 
 String OS_Windows::get_environment(const String &p_var) const {
@@ -2131,6 +2181,43 @@ MainLoop *OS_Windows::get_main_loop() const {
 	return main_loop;
 }
 
+String OS_Windows::get_config_path() const {
+
+	if (has_environment("XDG_CONFIG_HOME")) { // unlikely, but after all why not?
+		return get_environment("XDG_CONFIG_HOME");
+	} else if (has_environment("APPDATA")) {
+		return get_environment("APPDATA");
+	} else {
+		return ".";
+	}
+}
+
+String OS_Windows::get_data_path() const {
+
+	if (has_environment("XDG_DATA_HOME")) {
+		return get_environment("XDG_DATA_HOME");
+	} else {
+		return get_config_path();
+	}
+}
+
+String OS_Windows::get_cache_path() const {
+
+	if (has_environment("XDG_CACHE_HOME")) {
+		return get_environment("XDG_CACHE_HOME");
+	} else if (has_environment("TEMP")) {
+		return get_environment("TEMP");
+	} else {
+		return get_config_path();
+	}
+}
+
+// Get properly capitalized engine name for system paths
+String OS_Windows::get_godot_dir_name() const {
+
+	return String(VERSION_SHORT_NAME).capitalize();
+}
+
 String OS_Windows::get_system_dir(SystemDir p_dir) const {
 
 	int id;
@@ -2167,18 +2254,20 @@ String OS_Windows::get_system_dir(SystemDir p_dir) const {
 	ERR_FAIL_COND_V(res != S_OK, String());
 	return String(szPath);
 }
-String OS_Windows::get_data_dir() const {
 
-	String an = get_safe_application_name();
-	if (an != "") {
+String OS_Windows::get_user_data_dir() const {
 
-		if (has_environment("APPDATA")) {
-
-			bool use_godot = ProjectSettings::get_singleton()->get("application/config/use_shared_user_dir");
-			if (!use_godot)
-				return (OS::get_singleton()->get_environment("APPDATA") + "/" + an).replace("\\", "/");
-			else
-				return (OS::get_singleton()->get_environment("APPDATA") + "/Godot/app_userdata/" + an).replace("\\", "/");
+	String appname = get_safe_dir_name(ProjectSettings::get_singleton()->get("application/config/name"));
+	if (appname != "") {
+		bool use_custom_dir = ProjectSettings::get_singleton()->get("application/config/use_custom_user_dir");
+		if (use_custom_dir) {
+			String custom_dir = get_safe_dir_name(ProjectSettings::get_singleton()->get("application/config/custom_user_dir_name"), true);
+			if (custom_dir == "") {
+				custom_dir = appname;
+			}
+			return get_data_path().plus_file(custom_dir).replace("\\", "/");
+		} else {
+			return get_data_path().plus_file(get_godot_dir_name()).plus_file("app_userdata").plus_file(appname).replace("\\", "/");
 		}
 	}
 
@@ -2289,7 +2378,9 @@ OS_Windows::OS_Windows(HINSTANCE _hInstance) {
 	AudioDriverManager::add_driver(&driver_xaudio2);
 #endif
 
-	_set_logger(memnew(WindowsTerminalLogger));
+	Vector<Logger *> loggers;
+	loggers.push_back(memnew(WindowsTerminalLogger));
+	_set_logger(memnew(CompositeLogger(loggers)));
 }
 
 OS_Windows::~OS_Windows() {

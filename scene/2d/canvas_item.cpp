@@ -184,6 +184,11 @@ RID CanvasItemMaterial::get_shader_rid() const {
 	return shader_map[current_key].shader;
 }
 
+Shader::Mode CanvasItemMaterial::get_shader_mode() const {
+
+	return Shader::MODE_CANVAS_ITEM;
+}
+
 void CanvasItemMaterial::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("set_blend_mode", "blend_mode"), &CanvasItemMaterial::set_blend_mode);
@@ -206,8 +211,8 @@ void CanvasItemMaterial::_bind_methods() {
 	BIND_ENUM_CONSTANT(LIGHT_MODE_LIGHT_ONLY);
 }
 
-CanvasItemMaterial::CanvasItemMaterial()
-	: element(this) {
+CanvasItemMaterial::CanvasItemMaterial() :
+		element(this) {
 
 	blend_mode = BLEND_MODE_MIX;
 	light_mode = LIGHT_MODE_NORMAL;
@@ -1126,8 +1131,8 @@ Rect2 CanvasItem::_edit_get_item_and_children_rect() const {
 	return rect;
 }
 
-CanvasItem::CanvasItem()
-	: xform_change(this) {
+CanvasItem::CanvasItem() :
+		xform_change(this) {
 
 	canvas_item = VisualServer::get_singleton()->canvas_item_create();
 	visible = true;

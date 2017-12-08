@@ -360,7 +360,7 @@ void ProjectSettingsEditor::_wait_for_key(const Ref<InputEvent> &p_event) {
 		last_wait_for_key = p_event;
 		String str = keycode_get_string(k->get_scancode()).capitalize();
 		if (k->get_metakey())
-			str = TTR("Meta+") + str;
+			str = vformat("%s+", find_keycode_name(KEY_META)) + str;
 		if (k->get_shift())
 			str = TTR("Shift+") + str;
 		if (k->get_alt())
@@ -642,7 +642,7 @@ void ProjectSettingsEditor::_update_actions() {
 
 				String str = keycode_get_string(k->get_scancode()).capitalize();
 				if (k->get_metakey())
-					str = TTR("Meta+") + str;
+					str = vformat("%s+", find_keycode_name(KEY_META)) + str;
 				if (k->get_shift())
 					str = TTR("Shift+") + str;
 				if (k->get_alt())
@@ -1776,7 +1776,6 @@ ProjectSettingsEditor::ProjectSettingsEditor(EditorData *p_data) {
 
 	//translations
 	TabContainer *translations = memnew(TabContainer);
-	translations->add_style_override("panel", memnew(StyleBoxEmpty));
 	translations->set_tab_align(TabContainer::ALIGN_LEFT);
 	translations->set_name(TTR("Localization"));
 	tab_container->add_child(translations);
@@ -1888,19 +1887,14 @@ ProjectSettingsEditor::ProjectSettingsEditor(EditorData *p_data) {
 		translation_filter->connect("item_edited", this, "_translation_filter_option_changed");
 	}
 
-	{
-		autoload_settings = memnew(EditorAutoloadSettings);
-		autoload_settings->set_name(TTR("AutoLoad"));
-		tab_container->add_child(autoload_settings);
-		autoload_settings->connect("autoload_changed", this, "_settings_changed");
-	}
+	autoload_settings = memnew(EditorAutoloadSettings);
+	autoload_settings->set_name(TTR("AutoLoad"));
+	tab_container->add_child(autoload_settings);
+	autoload_settings->connect("autoload_changed", this, "_settings_changed");
 
-	{
-
-		plugin_settings = memnew(EditorPluginSettings);
-		plugin_settings->set_name(TTR("Plugins"));
-		tab_container->add_child(plugin_settings);
-	}
+	plugin_settings = memnew(EditorPluginSettings);
+	plugin_settings->set_name(TTR("Plugins"));
+	tab_container->add_child(plugin_settings);
 
 	timer = memnew(Timer);
 	timer->set_wait_time(1.5);

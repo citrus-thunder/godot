@@ -96,7 +96,6 @@ public:
 #define DISPLAY_CHANGED \
 	changes++;
 #endif
-		//	print_line(String("CHANGED: ") + __FUNCTION__);
 
 #define BIND0R(m_r, m_name) \
 	m_r m_name() { return BINDBASE->m_name(); }
@@ -167,6 +166,8 @@ public:
 	BIND1(texture_debug_usage, List<TextureInfo> *)
 
 	BIND1(textures_keep_original, bool)
+
+	BIND2(texture_set_proxy, RID, RID)
 
 	/* SKY API */
 
@@ -504,6 +505,8 @@ public:
 	BIND3(instance_set_surface_material, RID, int, RID)
 	BIND2(instance_set_visible, RID, bool)
 
+	BIND2(instance_set_custom_aabb, RID, AABB)
+
 	BIND2(instance_attach_skeleton, RID, RID)
 	BIND2(instance_set_exterior, RID, bool)
 
@@ -623,7 +626,7 @@ public:
 
 	virtual void request_frame_drawn_callback(Object *p_where, const StringName &p_method, const Variant &p_userdata);
 
-	virtual void draw();
+	virtual void draw(bool p_swap_buffers);
 	virtual void sync();
 	virtual bool has_changed() const;
 	virtual void init();

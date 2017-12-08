@@ -41,7 +41,7 @@
 
 #include <emscripten/html5.h>
 
-typedef String (*GetDataDirFunc)();
+typedef String (*GetUserDataDirFunc)();
 
 class OS_JavaScript : public OS_Unix {
 
@@ -62,7 +62,7 @@ class OS_JavaScript : public OS_Unix {
 	CursorShape cursor_shape;
 	MainLoop *main_loop;
 
-	GetDataDirFunc get_data_dir_func;
+	GetUserDataDirFunc get_user_data_dir_func;
 
 	PowerJavascript *power_manager;
 
@@ -81,7 +81,6 @@ public:
 	virtual int get_audio_driver_count() const;
 	virtual const char *get_audio_driver_name(int p_driver) const;
 
-	virtual void initialize_logger();
 	virtual void initialize_core();
 	virtual void initialize(const VideoMode &p_desired, int p_video_driver, int p_audio_driver);
 
@@ -141,7 +140,7 @@ public:
 	void set_opengl_extensions(const char *p_gl_extensions);
 
 	virtual Error shell_open(String p_uri);
-	virtual String get_data_dir() const;
+	virtual String get_user_data_dir() const;
 	String get_executable_path() const;
 	virtual String get_resource_dir() const;
 
@@ -160,7 +159,7 @@ public:
 
 	void set_idbfs_available(bool p_idbfs_available);
 
-	OS_JavaScript(const char *p_execpath, GetDataDirFunc p_get_data_dir_func);
+	OS_JavaScript(const char *p_execpath, GetUserDataDirFunc p_get_user_data_dir_func);
 	~OS_JavaScript();
 };
 

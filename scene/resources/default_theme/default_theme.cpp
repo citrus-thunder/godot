@@ -257,6 +257,8 @@ void fill_default_theme(Ref<Theme> &theme, const Ref<Font> &default_font, const 
 
 	// LinkButton
 
+	theme->set_stylebox("focus", "LinkButton", focus);
+
 	theme->set_font("font", "LinkButton", default_font);
 
 	theme->set_color("font_color", "LinkButton", control_font_color);
@@ -310,7 +312,7 @@ void fill_default_theme(Ref<Theme> &theme, const Ref<Font> &default_font, const 
 	theme->set_stylebox("pressed", "OptionButton", sb_optbutton_pressed);
 	theme->set_stylebox("hover", "OptionButton", sb_optbutton_hover);
 	theme->set_stylebox("disabled", "OptionButton", sb_optbutton_disabled);
-	theme->set_stylebox("focus", "OptionButton", sb_button_focus);
+	theme->set_stylebox("focus", "OptionButton", sb_optbutton_focus);
 
 	theme->set_icon("arrow", "OptionButton", make_icon(option_arrow_png));
 
@@ -328,8 +330,8 @@ void fill_default_theme(Ref<Theme> &theme, const Ref<Font> &default_font, const 
 
 	theme->set_stylebox("normal", "MenuButton", sb_button_normal);
 	theme->set_stylebox("pressed", "MenuButton", sb_button_pressed);
-	theme->set_stylebox("hover", "MenuButton", sb_button_pressed);
-	theme->set_stylebox("disabled", "MenuButton", make_empty_stylebox(0, 0, 0, 0));
+	theme->set_stylebox("hover", "MenuButton", sb_button_hover);
+	theme->set_stylebox("disabled", "MenuButton", sb_button_disabled);
 	theme->set_stylebox("focus", "MenuButton", sb_button_focus);
 
 	theme->set_font("font", "MenuButton", default_font);
@@ -448,6 +450,7 @@ void fill_default_theme(Ref<Theme> &theme, const Ref<Font> &default_font, const 
 
 	theme->set_stylebox("normal", "TextEdit", make_stylebox(tree_bg_png, 3, 3, 3, 3));
 	theme->set_stylebox("focus", "TextEdit", focus);
+	theme->set_stylebox("read_only", "TextEdit", make_stylebox(tree_bg_disabled_png, 4, 4, 4, 4));
 	theme->set_stylebox("completion", "TextEdit", make_stylebox(tree_bg_png, 3, 3, 3, 3));
 
 	theme->set_icon("tab", "TextEdit", make_icon(tab_png));
@@ -465,6 +468,7 @@ void fill_default_theme(Ref<Theme> &theme, const Ref<Font> &default_font, const 
 	theme->set_color("selection_color", "TextEdit", font_color_selection);
 	theme->set_color("mark_color", "TextEdit", Color(1.0, 0.4, 0.4, 0.4));
 	theme->set_color("breakpoint_color", "TextEdit", Color(0.8, 0.8, 0.4, 0.2));
+	theme->set_color("code_folding_color", "TextEdit", Color(0.8, 0.8, 0.8, 0.8));
 	theme->set_color("current_line_color", "TextEdit", Color(0.25, 0.25, 0.26, 0.8));
 	theme->set_color("caret_color", "TextEdit", control_font_color);
 	theme->set_color("caret_background_color", "TextEdit", Color::html("000000"));
@@ -556,6 +560,7 @@ void fill_default_theme(Ref<Theme> &theme, const Ref<Font> &default_font, const 
 	// File Dialog
 
 	theme->set_icon("reload", "FileDialog", make_icon(icon_reload_png));
+	theme->set_icon("parent_folder", "FileDialog", make_icon(icon_parent_folder_png));
 
 	// Popup
 

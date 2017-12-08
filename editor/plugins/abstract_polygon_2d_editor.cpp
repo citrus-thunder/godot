@@ -32,18 +32,21 @@
 #include "canvas_item_editor_plugin.h"
 #include "core/os/keyboard.h"
 
-AbstractPolygon2DEditor::Vertex::Vertex()
-	: polygon(-1), vertex(-1) {
+AbstractPolygon2DEditor::Vertex::Vertex() :
+		polygon(-1),
+		vertex(-1) {
 	// invalid vertex
 }
 
-AbstractPolygon2DEditor::Vertex::Vertex(int p_vertex)
-	: polygon(-1), vertex(p_vertex) {
+AbstractPolygon2DEditor::Vertex::Vertex(int p_vertex) :
+		polygon(-1),
+		vertex(p_vertex) {
 	// vertex p_vertex of current wip polygon
 }
 
-AbstractPolygon2DEditor::Vertex::Vertex(int p_polygon, int p_vertex)
-	: polygon(p_polygon), vertex(p_vertex) {
+AbstractPolygon2DEditor::Vertex::Vertex(int p_polygon, int p_vertex) :
+		polygon(p_polygon),
+		vertex(p_vertex) {
 	// vertex p_vertex of polygon p_polygon
 }
 
@@ -66,12 +69,14 @@ AbstractPolygon2DEditor::PosVertex::PosVertex() {
 	// invalid vertex
 }
 
-AbstractPolygon2DEditor::PosVertex::PosVertex(const Vertex &p_vertex, const Vector2 &p_pos)
-	: Vertex(p_vertex.polygon, p_vertex.vertex), pos(p_pos) {
+AbstractPolygon2DEditor::PosVertex::PosVertex(const Vertex &p_vertex, const Vector2 &p_pos) :
+		Vertex(p_vertex.polygon, p_vertex.vertex),
+		pos(p_pos) {
 }
 
-AbstractPolygon2DEditor::PosVertex::PosVertex(int p_polygon, int p_vertex, const Vector2 &p_pos)
-	: Vertex(p_polygon, p_vertex), pos(p_pos) {
+AbstractPolygon2DEditor::PosVertex::PosVertex(int p_polygon, int p_vertex, const Vector2 &p_pos) :
+		Vertex(p_polygon, p_vertex),
+		pos(p_pos) {
 }
 
 bool AbstractPolygon2DEditor::_is_empty() const {
@@ -167,7 +172,7 @@ void AbstractPolygon2DEditor::_menu_option(int p_option) {
 		} break;
 		case MODE_EDIT: {
 
-			wip_active = false;
+			_wip_close();
 			mode = MODE_EDIT;
 			button_create->set_pressed(false);
 			button_edit->set_pressed(true);
@@ -175,7 +180,7 @@ void AbstractPolygon2DEditor::_menu_option(int p_option) {
 		} break;
 		case MODE_DELETE: {
 
-			wip_active = false;
+			_wip_close();
 			mode = MODE_DELETE;
 			button_create->set_pressed(false);
 			button_edit->set_pressed(false);
@@ -224,6 +229,9 @@ void AbstractPolygon2DEditor::_wip_changed() {
 }
 
 void AbstractPolygon2DEditor::_wip_close() {
+	if (!wip_active)
+		return;
+
 	if (_is_line()) {
 
 		_set_polygon(0, wip);
@@ -490,15 +498,14 @@ bool AbstractPolygon2DEditor::forward_gui_input(const Ref<InputEvent> &p_event) 
 	return false;
 }
 
-void AbstractPolygon2DEditor::forward_draw_over_canvas(Control *p_canvas) {
+void AbstractPolygon2DEditor::forward_draw_over_viewport(Control *p_overlay) {
 	if (!_get_node())
 		return;
 
 	Control *vpc = canvas_item_editor->get_viewport_control();
 
 	Transform2D xform = canvas_item_editor->get_canvas_transform() * _get_node()->get_global_transform();
-	Ref<Texture> default_handle = get_icon("EditorHandle", "EditorIcons");
-	Ref<Texture> selected_handle = get_icon("EditorHandleSelected", "EditorIcons");
+	const Ref<Texture> handle = get_icon("EditorHandle", "EditorIcons");
 
 	const Vertex active_point = get_active_point();
 	const int n_polygons = _get_polygon_count();
@@ -572,8 +579,8 @@ void AbstractPolygon2DEditor::forward_draw_over_canvas(Control *p_canvas) {
 			const Vector2 p = (vertex == edited_point) ? edited_point.pos : (points[i] + offset);
 			const Vector2 point = xform.xform(p);
 
-			Ref<Texture> handle = vertex == active_point ? selected_handle : default_handle;
-			vpc->draw_texture(handle, point - handle->get_size() * 0.5);
+			const Color modulate = vertex == active_point ? Color(0.5, 1, 2) : Color(1, 1, 1);
+			vpc->draw_texture(handle, point - handle->get_size() * 0.5, modulate);
 		}
 	}
 

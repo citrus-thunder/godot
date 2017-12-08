@@ -69,8 +69,8 @@ class SnapDialog : public ConfirmationDialog {
 	SpinBox *rotation_step;
 
 public:
-	SnapDialog()
-		: ConfirmationDialog() {
+	SnapDialog() :
+			ConfirmationDialog() {
 		const int SPIN_BOX_GRID_RANGE = 256;
 		const int SPIN_BOX_ROTATION_RANGE = 360;
 		Label *label;
@@ -1442,6 +1442,22 @@ void CanvasItemEditor::_gui_input_viewport(const Ref<InputEvent> &p_event) {
 		}
 	}
 
+	Ref<InputEventMagnifyGesture> magnify_gesture = p_event;
+	if (magnify_gesture.is_valid()) {
+
+		_zoom_on_position(zoom * magnify_gesture->get_factor(), magnify_gesture->get_position());
+		return;
+	}
+
+	Ref<InputEventPanGesture> pan_gesture = p_event;
+	if (pan_gesture.is_valid()) {
+
+		const Vector2 delta = (int(EditorSettings::get_singleton()->get("editors/2d/pan_speed")) / zoom) * pan_gesture->get_delta();
+		h_scroll->set_value(h_scroll->get_value() + delta.x);
+		v_scroll->set_value(v_scroll->get_value() + delta.y);
+		return;
+	}
+
 	Ref<InputEventMouseButton> b = p_event;
 	if (b.is_valid()) {
 		// Button event
@@ -1858,7 +1874,17 @@ void CanvasItemEditor::_gui_input_viewport(const Ref<InputEvent> &p_event) {
 		}
 
 		if (drag == DRAG_NONE) {
-			if (((m->get_button_mask() & BUTTON_MASK_LEFT) && tool == TOOL_PAN) || (m->get_button_mask() & BUTTON_MASK_MIDDLE) || ((m->get_button_mask() & BUTTON_MASK_LEFT) && Input::get_singleton()->is_key_pressed(KEY_SPACE))) {
+			bool space_pressed = Input::get_singleton()->is_key_pressed(KEY_SPACE);
+			bool simple_panning = EditorSettings::get_singleton()->get("editors/2d/simple_spacebar_panning");
+			int button = m->get_button_mask();
+
+			// Check if any of the panning triggers are activated
+			bool panning_tool = (button & BUTTON_MASK_LEFT) && tool == TOOL_PAN;
+			bool panning_middle_button = button & BUTTON_MASK_MIDDLE;
+			bool panning_spacebar = (button & BUTTON_MASK_LEFT) && space_pressed;
+			bool panning_spacebar_simple = space_pressed && simple_panning;
+
+			if (panning_tool || panning_middle_button || panning_spacebar || panning_spacebar_simple) {
 				// Pan the viewport
 				Point2i relative;
 				if (bool(EditorSettings::get_singleton()->get("editors/2d/warped_mouse_panning"))) {
@@ -2268,7 +2294,7 @@ void CanvasItemEditor::_draw_focus() {
 
 void CanvasItemEditor::_draw_guides() {
 
-	Color guide_color = Color(0.6, 0.0, 0.8);
+	Color guide_color = EditorSettings::get_singleton()->get("editors/2d/guides_color");
 	Transform2D xform = viewport_scrollable->get_transform() * transform;
 
 	// Guides already there
@@ -2929,8 +2955,13 @@ void CanvasItemEditor::_draw_viewport() {
 
 	EditorPluginList *over_plugin_list = editor->get_editor_plugins_over();
 	if (!over_plugin_list->empty()) {
-		over_plugin_list->forward_draw_over_canvas(viewport);
+		over_plugin_list->forward_draw_over_viewport(viewport);
 	}
+	EditorPluginList *force_over_plugin_list = editor->get_editor_plugins_force_over();
+	if (!force_over_plugin_list->empty()) {
+		force_over_plugin_list->forward_force_draw_over_viewport(viewport);
+	}
+
 	_draw_bones();
 }
 
@@ -4283,7 +4314,7 @@ CanvasItemEditor::CanvasItemEditor(EditorNode *p_editor) {
 
 	show_grid = false;
 	show_helpers = false;
-	show_rulers = false;
+	show_rulers = true;
 	show_guides = true;
 	zoom = 1;
 	grid_offset = Point2();
