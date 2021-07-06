@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,35 +27,47 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
-#ifndef TOOLS_EDITOR_PLUGINS_COLOR_RAMP_EDITOR_PLUGIN_H_
-#define TOOLS_EDITOR_PLUGINS_COLOR_RAMP_EDITOR_PLUGIN_H_
+
+#ifndef GRADIENT_EDITOR_PLUGIN_H
+#define GRADIENT_EDITOR_PLUGIN_H
 
 #include "editor/editor_node.h"
 #include "editor/editor_plugin.h"
 #include "scene/gui/gradient_edit.h"
 
-class GradientEditorPlugin : public EditorPlugin {
+class GradientEditor : public GradientEdit {
+	GDCLASS(GradientEditor, GradientEdit);
 
-	GDCLASS(GradientEditorPlugin, EditorPlugin);
+	bool editing;
+	Ref<Gradient> gradient;
 
-	Ref<Gradient> gradient_ref;
-	GradientEdit *ramp_editor;
-	EditorNode *editor;
+	void _gradient_changed();
+	void _ramp_changed();
 
 protected:
 	static void _bind_methods();
-	void _ramp_changed();
-	void _undo_redo_gradient(const Vector<float> &offsets, const Vector<Color> &colors);
 
 public:
-	virtual String get_name() const { return "ColorRamp"; }
-	bool has_main_screen() const { return false; }
-	virtual void edit(Object *p_object);
-	virtual bool handles(Object *p_object) const;
-	virtual void make_visible(bool p_visible);
-
-	GradientEditorPlugin(EditorNode *p_node);
-	~GradientEditorPlugin();
+	virtual Size2 get_minimum_size() const override;
+	void set_gradient(const Ref<Gradient> &p_gradient);
+	GradientEditor();
 };
 
-#endif /* TOOLS_EDITOR_PLUGINS_COLOR_RAMP_EDITOR_PLUGIN_H_ */
+class EditorInspectorPluginGradient : public EditorInspectorPlugin {
+	GDCLASS(EditorInspectorPluginGradient, EditorInspectorPlugin);
+
+public:
+	virtual bool can_handle(Object *p_object) override;
+	virtual void parse_begin(Object *p_object) override;
+};
+
+class GradientEditorPlugin : public EditorPlugin {
+	GDCLASS(GradientEditorPlugin, EditorPlugin);
+
+public:
+	virtual String get_name() const override { return "Gradient"; }
+
+	GradientEditorPlugin(EditorNode *p_node);
+};
+
+#endif // GRADIENT_EDITOR_PLUGIN_H

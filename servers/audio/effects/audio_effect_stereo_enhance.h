@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef AUDIOEFFECTSTEREOENHANCE_H
 #define AUDIOEFFECTSTEREOENHANCE_H
 
@@ -35,12 +36,11 @@
 class AudioEffectStereoEnhance;
 
 class AudioEffectStereoEnhanceInstance : public AudioEffectInstance {
-	GDCLASS(AudioEffectStereoEnhanceInstance, AudioEffectInstance)
+	GDCLASS(AudioEffectStereoEnhanceInstance, AudioEffectInstance);
 	friend class AudioEffectStereoEnhance;
 	Ref<AudioEffectStereoEnhance> base;
 
 	enum {
-
 		MAX_DELAY_MS = 50
 	};
 
@@ -49,13 +49,13 @@ class AudioEffectStereoEnhanceInstance : public AudioEffectInstance {
 	unsigned int ringbuff_mask;
 
 public:
-	virtual void process(const AudioFrame *p_src_frames, AudioFrame *p_dst_frames, int p_frame_count);
+	virtual void process(const AudioFrame *p_src_frames, AudioFrame *p_dst_frames, int p_frame_count) override;
 
 	~AudioEffectStereoEnhanceInstance();
 };
 
 class AudioEffectStereoEnhance : public AudioEffect {
-	GDCLASS(AudioEffectStereoEnhance, AudioEffect)
+	GDCLASS(AudioEffectStereoEnhance, AudioEffect);
 
 	friend class AudioEffectStereoEnhanceInstance;
 	float volume_db;
@@ -68,7 +68,7 @@ protected:
 	static void _bind_methods();
 
 public:
-	Ref<AudioEffectInstance> instance();
+	Ref<AudioEffectInstance> instantiate() override;
 
 	void set_pan_pullout(float p_amount);
 	float get_pan_pullout() const;

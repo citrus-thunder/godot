@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,21 +27,24 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef RANGE_H
 #define RANGE_H
 
 #include "scene/gui/control.h"
-/**
-	@author Juan Linietsky <reduzio@gmail.com>
-*/
-class Range : public Control {
 
+class Range : public Control {
 	GDCLASS(Range, Control);
 
 	struct Shared {
-		double val, min, max;
-		double step, page;
-		bool exp_ratio;
+		double val = 0.0;
+		double min = 0.0;
+		double max = 100.0;
+		double step = 1.0;
+		double page = 0.0;
+		bool exp_ratio = false;
+		bool allow_greater = false;
+		bool allow_lesser = false;
 		Set<Range *> owners;
 		void emit_value_changed();
 		void emit_changed(const char *p_what = "");
@@ -62,7 +65,7 @@ protected:
 
 	static void _bind_methods();
 
-	bool _rounded_values;
+	bool _rounded_values = false;
 
 public:
 	void set_value(double p_val);
@@ -85,8 +88,16 @@ public:
 	void set_exp_ratio(bool p_enable);
 	bool is_ratio_exp() const;
 
+	void set_allow_greater(bool p_allow);
+	bool is_greater_allowed() const;
+
+	void set_allow_lesser(bool p_allow);
+	bool is_lesser_allowed() const;
+
 	void share(Range *p_range);
 	void unshare();
+
+	TypedArray<String> get_configuration_warnings() const override;
 
 	Range();
 	~Range();

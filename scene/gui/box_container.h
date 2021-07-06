@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,13 +27,13 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef BOX_CONTAINER_H
 #define BOX_CONTAINER_H
 
 #include "scene/gui/container.h"
 
 class BoxContainer : public Container {
-
 	GDCLASS(BoxContainer, Container);
 
 public:
@@ -44,8 +44,8 @@ public:
 	};
 
 private:
-	bool vertical;
-	AlignMode align;
+	bool vertical = false;
+	AlignMode align = ALIGN_BEGIN;
 
 	void _resort();
 
@@ -55,18 +55,17 @@ protected:
 	static void _bind_methods();
 
 public:
-	void add_spacer(bool p_begin = false);
+	Control *add_spacer(bool p_begin = false);
 
 	void set_alignment(AlignMode p_align);
 	AlignMode get_alignment() const;
 
-	virtual Size2 get_minimum_size() const;
+	virtual Size2 get_minimum_size() const override;
 
 	BoxContainer(bool p_vertical = false);
 };
 
 class HBoxContainer : public BoxContainer {
-
 	GDCLASS(HBoxContainer, BoxContainer);
 
 public:
@@ -76,7 +75,6 @@ public:
 
 class MarginContainer;
 class VBoxContainer : public BoxContainer {
-
 	GDCLASS(VBoxContainer, BoxContainer);
 
 public:

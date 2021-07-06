@@ -1,13 +1,12 @@
 /*************************************************************************/
 /*  hinge_joint_bullet.cpp                                               */
-/*  Author: AndreaCatania                                                */
 /*************************************************************************/
 /*                       This file is part of:                           */
 /*                           GODOT ENGINE                                */
-/*                    http://www.godotengine.org                         */
+/*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -30,23 +29,34 @@
 /*************************************************************************/
 
 #include "hinge_joint_bullet.h"
-#include "BulletDynamics/ConstraintSolver/btHingeConstraint.h"
+
 #include "bullet_types_converter.h"
 #include "bullet_utilities.h"
 #include "rigid_body_bullet.h"
 
-HingeJointBullet::HingeJointBullet(RigidBodyBullet *rbA, RigidBodyBullet *rbB, const Transform &frameA, const Transform &frameB) :
+#include <BulletDynamics/ConstraintSolver/btHingeConstraint.h>
+
+/**
+	@author AndreaCatania
+*/
+
+HingeJointBullet::HingeJointBullet(RigidBodyBullet *rbA, RigidBodyBullet *rbB, const Transform3D &frameA, const Transform3D &frameB) :
 		JointBullet() {
+	Transform3D scaled_AFrame(frameA.scaled(rbA->get_body_scale()));
+	scaled_AFrame.basis.rotref_posscale_decomposition(scaled_AFrame.basis);
+
 	btTransform btFrameA;
-	G_TO_B(frameA, btFrameA);
+	G_TO_B(scaled_AFrame, btFrameA);
 
 	if (rbB) {
+		Transform3D scaled_BFrame(frameB.scaled(rbB->get_body_scale()));
+		scaled_BFrame.basis.rotref_posscale_decomposition(scaled_BFrame.basis);
+
 		btTransform btFrameB;
-		G_TO_B(frameB, btFrameB);
+		G_TO_B(scaled_BFrame, btFrameB);
 
 		hingeConstraint = bulletnew(btHingeConstraint(*rbA->get_bt_rigid_body(), *rbB->get_bt_rigid_body(), btFrameA, btFrameB));
 	} else {
-
 		hingeConstraint = bulletnew(btHingeConstraint(*rbA->get_bt_rigid_body(), btFrameA));
 	}
 
@@ -55,21 +65,19 @@ HingeJointBullet::HingeJointBullet(RigidBodyBullet *rbA, RigidBodyBullet *rbB, c
 
 HingeJointBullet::HingeJointBullet(RigidBodyBullet *rbA, RigidBodyBullet *rbB, const Vector3 &pivotInA, const Vector3 &pivotInB, const Vector3 &axisInA, const Vector3 &axisInB) :
 		JointBullet() {
-
 	btVector3 btPivotA;
 	btVector3 btAxisA;
-	G_TO_B(pivotInA, btPivotA);
-	G_TO_B(axisInA, btAxisA);
+	G_TO_B(pivotInA * rbA->get_body_scale(), btPivotA);
+	G_TO_B(axisInA * rbA->get_body_scale(), btAxisA);
 
 	if (rbB) {
 		btVector3 btPivotB;
 		btVector3 btAxisB;
-		G_TO_B(pivotInB, btPivotB);
-		G_TO_B(axisInB, btAxisB);
+		G_TO_B(pivotInB * rbB->get_body_scale(), btPivotB);
+		G_TO_B(axisInB * rbB->get_body_scale(), btAxisB);
 
 		hingeConstraint = bulletnew(btHingeConstraint(*rbA->get_bt_rigid_body(), *rbB->get_bt_rigid_body(), btPivotA, btPivotB, btAxisA, btAxisB));
 	} else {
-
 		hingeConstraint = bulletnew(btHingeConstraint(*rbA->get_bt_rigid_body(), btPivotA, btAxisA));
 	}
 
@@ -80,82 +88,85 @@ real_t HingeJointBullet::get_hinge_angle() {
 	return hingeConstraint->getHingeAngle();
 }
 
-void HingeJointBullet::set_param(PhysicsServer::HingeJointParam p_param, real_t p_value) {
+void HingeJointBullet::set_param(PhysicsServer3D::HingeJointParam p_param, real_t p_value) {
 	switch (p_param) {
-		case PhysicsServer::HINGE_JOINT_BIAS:
-			if (0 < p_value) {
-				print_line("The Bullet Hinge Joint doesn't support bias, So it's always 0");
-			}
+		case PhysicsServer3D::HINGE_JOINT_BIAS:
+			WARN_DEPRECATED_MSG("The HingeJoint3D parameter \"bias\" is deprecated.");
 			break;
-		case PhysicsServer::HINGE_JOINT_LIMIT_UPPER:
+		case PhysicsServer3D::HINGE_JOINT_LIMIT_UPPER:
 			hingeConstraint->setLimit(hingeConstraint->getLowerLimit(), p_value, hingeConstraint->getLimitSoftness(), hingeConstraint->getLimitBiasFactor(), hingeConstraint->getLimitRelaxationFactor());
 			break;
-		case PhysicsServer::HINGE_JOINT_LIMIT_LOWER:
+		case PhysicsServer3D::HINGE_JOINT_LIMIT_LOWER:
 			hingeConstraint->setLimit(p_value, hingeConstraint->getUpperLimit(), hingeConstraint->getLimitSoftness(), hingeConstraint->getLimitBiasFactor(), hingeConstraint->getLimitRelaxationFactor());
 			break;
-		case PhysicsServer::HINGE_JOINT_LIMIT_BIAS:
+		case PhysicsServer3D::HINGE_JOINT_LIMIT_BIAS:
 			hingeConstraint->setLimit(hingeConstraint->getLowerLimit(), hingeConstraint->getUpperLimit(), hingeConstraint->getLimitSoftness(), p_value, hingeConstraint->getLimitRelaxationFactor());
 			break;
-		case PhysicsServer::HINGE_JOINT_LIMIT_SOFTNESS:
+		case PhysicsServer3D::HINGE_JOINT_LIMIT_SOFTNESS:
 			hingeConstraint->setLimit(hingeConstraint->getLowerLimit(), hingeConstraint->getUpperLimit(), p_value, hingeConstraint->getLimitBiasFactor(), hingeConstraint->getLimitRelaxationFactor());
 			break;
-		case PhysicsServer::HINGE_JOINT_LIMIT_RELAXATION:
+		case PhysicsServer3D::HINGE_JOINT_LIMIT_RELAXATION:
 			hingeConstraint->setLimit(hingeConstraint->getLowerLimit(), hingeConstraint->getUpperLimit(), hingeConstraint->getLimitSoftness(), hingeConstraint->getLimitBiasFactor(), p_value);
 			break;
-		case PhysicsServer::HINGE_JOINT_MOTOR_TARGET_VELOCITY:
+		case PhysicsServer3D::HINGE_JOINT_MOTOR_TARGET_VELOCITY:
 			hingeConstraint->setMotorTargetVelocity(p_value);
 			break;
-		case PhysicsServer::HINGE_JOINT_MOTOR_MAX_IMPULSE:
+		case PhysicsServer3D::HINGE_JOINT_MOTOR_MAX_IMPULSE:
 			hingeConstraint->setMaxMotorImpulse(p_value);
 			break;
-		default:
-			WARN_PRINTS("The Bullet Hinge Joint doesn't support this parameter: " + itos(p_param) + ", value: " + itos(p_value));
-	}
-}
-
-real_t HingeJointBullet::get_param(PhysicsServer::HingeJointParam p_param) const {
-	switch (p_param) {
-		case PhysicsServer::HINGE_JOINT_BIAS:
-			return 0;
+		case PhysicsServer3D::HINGE_JOINT_MAX:
+			// Internal size value, nothing to do.
 			break;
-		case PhysicsServer::HINGE_JOINT_LIMIT_UPPER:
-			return hingeConstraint->getUpperLimit();
-		case PhysicsServer::HINGE_JOINT_LIMIT_LOWER:
-			return hingeConstraint->getLowerLimit();
-		case PhysicsServer::HINGE_JOINT_LIMIT_BIAS:
-			return hingeConstraint->getLimitBiasFactor();
-		case PhysicsServer::HINGE_JOINT_LIMIT_SOFTNESS:
-			return hingeConstraint->getLimitSoftness();
-		case PhysicsServer::HINGE_JOINT_LIMIT_RELAXATION:
-			return hingeConstraint->getLimitRelaxationFactor();
-		case PhysicsServer::HINGE_JOINT_MOTOR_TARGET_VELOCITY:
-			return hingeConstraint->getMotorTargetVelocity();
-		case PhysicsServer::HINGE_JOINT_MOTOR_MAX_IMPULSE:
-			return hingeConstraint->getMaxMotorImpulse();
-		default:
-			WARN_PRINTS("The Bullet Hinge Joint doesn't support this parameter: " + itos(p_param));
-			return 0;
 	}
 }
 
-void HingeJointBullet::set_flag(PhysicsServer::HingeJointFlag p_flag, bool p_value) {
+real_t HingeJointBullet::get_param(PhysicsServer3D::HingeJointParam p_param) const {
+	switch (p_param) {
+		case PhysicsServer3D::HINGE_JOINT_BIAS:
+			WARN_DEPRECATED_MSG("The HingeJoint3D parameter \"bias\" is deprecated.");
+			return 0;
+		case PhysicsServer3D::HINGE_JOINT_LIMIT_UPPER:
+			return hingeConstraint->getUpperLimit();
+		case PhysicsServer3D::HINGE_JOINT_LIMIT_LOWER:
+			return hingeConstraint->getLowerLimit();
+		case PhysicsServer3D::HINGE_JOINT_LIMIT_BIAS:
+			return hingeConstraint->getLimitBiasFactor();
+		case PhysicsServer3D::HINGE_JOINT_LIMIT_SOFTNESS:
+			return hingeConstraint->getLimitSoftness();
+		case PhysicsServer3D::HINGE_JOINT_LIMIT_RELAXATION:
+			return hingeConstraint->getLimitRelaxationFactor();
+		case PhysicsServer3D::HINGE_JOINT_MOTOR_TARGET_VELOCITY:
+			return hingeConstraint->getMotorTargetVelocity();
+		case PhysicsServer3D::HINGE_JOINT_MOTOR_MAX_IMPULSE:
+			return hingeConstraint->getMaxMotorImpulse();
+		case PhysicsServer3D::HINGE_JOINT_MAX:
+			// Internal size value, nothing to do.
+			return 0;
+	}
+	// Compiler doesn't seem to notice that all code paths are fulfilled...
+	return 0;
+}
+
+void HingeJointBullet::set_flag(PhysicsServer3D::HingeJointFlag p_flag, bool p_value) {
 	switch (p_flag) {
-		case PhysicsServer::HINGE_JOINT_FLAG_USE_LIMIT:
+		case PhysicsServer3D::HINGE_JOINT_FLAG_USE_LIMIT:
 			if (!p_value) {
 				hingeConstraint->setLimit(-Math_PI, Math_PI);
 			}
 			break;
-		case PhysicsServer::HINGE_JOINT_FLAG_ENABLE_MOTOR:
+		case PhysicsServer3D::HINGE_JOINT_FLAG_ENABLE_MOTOR:
 			hingeConstraint->enableMotor(p_value);
 			break;
+		case PhysicsServer3D::HINGE_JOINT_FLAG_MAX:
+			break; // Can't happen, but silences warning
 	}
 }
 
-bool HingeJointBullet::get_flag(PhysicsServer::HingeJointFlag p_flag) const {
+bool HingeJointBullet::get_flag(PhysicsServer3D::HingeJointFlag p_flag) const {
 	switch (p_flag) {
-		case PhysicsServer::HINGE_JOINT_FLAG_USE_LIMIT:
+		case PhysicsServer3D::HINGE_JOINT_FLAG_USE_LIMIT:
 			return true;
-		case PhysicsServer::HINGE_JOINT_FLAG_ENABLE_MOTOR:
+		case PhysicsServer3D::HINGE_JOINT_FLAG_ENABLE_MOTOR:
 			return hingeConstraint->getEnableAngularMotor();
 		default:
 			return false;

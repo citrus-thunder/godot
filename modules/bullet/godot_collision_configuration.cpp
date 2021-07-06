@@ -1,13 +1,12 @@
 /*************************************************************************/
 /*  godot_collision_configuration.cpp                                    */
-/*  Author: AndreaCatania                                                */
 /*************************************************************************/
 /*                       This file is part of:                           */
 /*                           GODOT ENGINE                                */
-/*                    http://www.godotengine.org                         */
+/*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -30,14 +29,19 @@
 /*************************************************************************/
 
 #include "godot_collision_configuration.h"
-#include "BulletCollision/BroadphaseCollision/btBroadphaseProxy.h"
-#include "BulletDynamics/Dynamics/btDiscreteDynamicsWorld.h"
+
 #include "godot_ray_world_algorithm.h"
+
+#include <BulletCollision/BroadphaseCollision/btBroadphaseProxy.h>
+#include <BulletDynamics/Dynamics/btDiscreteDynamicsWorld.h>
+
+/**
+	@author AndreaCatania
+*/
 
 GodotCollisionConfiguration::GodotCollisionConfiguration(const btDiscreteDynamicsWorld *world, const btDefaultCollisionConstructionInfo &constructionInfo) :
 		btDefaultCollisionConfiguration(constructionInfo) {
-
-	void *mem = NULL;
+	void *mem = nullptr;
 
 	mem = btAlignedAlloc(sizeof(GodotRayWorldAlgorithm::CreateFunc), 16);
 	m_rayWorldCF = new (mem) GodotRayWorldAlgorithm::CreateFunc(world);
@@ -55,37 +59,72 @@ GodotCollisionConfiguration::~GodotCollisionConfiguration() {
 }
 
 btCollisionAlgorithmCreateFunc *GodotCollisionConfiguration::getCollisionAlgorithmCreateFunc(int proxyType0, int proxyType1) {
-
 	if (CUSTOM_CONVEX_SHAPE_TYPE == proxyType0 && CUSTOM_CONVEX_SHAPE_TYPE == proxyType1) {
-
 		// This collision is not supported
 		return m_emptyCreateFunc;
 	} else if (CUSTOM_CONVEX_SHAPE_TYPE == proxyType0) {
-
 		return m_rayWorldCF;
 	} else if (CUSTOM_CONVEX_SHAPE_TYPE == proxyType1) {
-
 		return m_swappedRayWorldCF;
 	} else {
-
 		return btDefaultCollisionConfiguration::getCollisionAlgorithmCreateFunc(proxyType0, proxyType1);
 	}
 }
 
 btCollisionAlgorithmCreateFunc *GodotCollisionConfiguration::getClosestPointsAlgorithmCreateFunc(int proxyType0, int proxyType1) {
-
 	if (CUSTOM_CONVEX_SHAPE_TYPE == proxyType0 && CUSTOM_CONVEX_SHAPE_TYPE == proxyType1) {
-
 		// This collision is not supported
 		return m_emptyCreateFunc;
 	} else if (CUSTOM_CONVEX_SHAPE_TYPE == proxyType0) {
-
 		return m_rayWorldCF;
 	} else if (CUSTOM_CONVEX_SHAPE_TYPE == proxyType1) {
-
 		return m_swappedRayWorldCF;
 	} else {
-
 		return btDefaultCollisionConfiguration::getClosestPointsAlgorithmCreateFunc(proxyType0, proxyType1);
+	}
+}
+
+GodotSoftCollisionConfiguration::GodotSoftCollisionConfiguration(const btDiscreteDynamicsWorld *world, const btDefaultCollisionConstructionInfo &constructionInfo) :
+		btSoftBodyRigidBodyCollisionConfiguration(constructionInfo) {
+	void *mem = nullptr;
+
+	mem = btAlignedAlloc(sizeof(GodotRayWorldAlgorithm::CreateFunc), 16);
+	m_rayWorldCF = new (mem) GodotRayWorldAlgorithm::CreateFunc(world);
+
+	mem = btAlignedAlloc(sizeof(GodotRayWorldAlgorithm::SwappedCreateFunc), 16);
+	m_swappedRayWorldCF = new (mem) GodotRayWorldAlgorithm::SwappedCreateFunc(world);
+}
+
+GodotSoftCollisionConfiguration::~GodotSoftCollisionConfiguration() {
+	m_rayWorldCF->~btCollisionAlgorithmCreateFunc();
+	btAlignedFree(m_rayWorldCF);
+
+	m_swappedRayWorldCF->~btCollisionAlgorithmCreateFunc();
+	btAlignedFree(m_swappedRayWorldCF);
+}
+
+btCollisionAlgorithmCreateFunc *GodotSoftCollisionConfiguration::getCollisionAlgorithmCreateFunc(int proxyType0, int proxyType1) {
+	if (CUSTOM_CONVEX_SHAPE_TYPE == proxyType0 && CUSTOM_CONVEX_SHAPE_TYPE == proxyType1) {
+		// This collision is not supported
+		return m_emptyCreateFunc;
+	} else if (CUSTOM_CONVEX_SHAPE_TYPE == proxyType0) {
+		return m_rayWorldCF;
+	} else if (CUSTOM_CONVEX_SHAPE_TYPE == proxyType1) {
+		return m_swappedRayWorldCF;
+	} else {
+		return btSoftBodyRigidBodyCollisionConfiguration::getCollisionAlgorithmCreateFunc(proxyType0, proxyType1);
+	}
+}
+
+btCollisionAlgorithmCreateFunc *GodotSoftCollisionConfiguration::getClosestPointsAlgorithmCreateFunc(int proxyType0, int proxyType1) {
+	if (CUSTOM_CONVEX_SHAPE_TYPE == proxyType0 && CUSTOM_CONVEX_SHAPE_TYPE == proxyType1) {
+		// This collision is not supported
+		return m_emptyCreateFunc;
+	} else if (CUSTOM_CONVEX_SHAPE_TYPE == proxyType0) {
+		return m_rayWorldCF;
+	} else if (CUSTOM_CONVEX_SHAPE_TYPE == proxyType1) {
+		return m_swappedRayWorldCF;
+	} else {
+		return btSoftBodyRigidBodyCollisionConfiguration::getClosestPointsAlgorithmCreateFunc(proxyType0, proxyType1);
 	}
 }

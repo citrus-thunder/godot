@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,24 +27,24 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef STYLE_BOX_EDITOR_PLUGIN_H
 #define STYLE_BOX_EDITOR_PLUGIN_H
 
+#include "editor/editor_inspector.h"
 #include "editor/editor_node.h"
 #include "scene/gui/option_button.h"
 #include "scene/gui/texture_rect.h"
 #include "scene/resources/style_box.h"
 
-class StyleBoxEditor : public Control {
+class StyleBoxPreview : public VBoxContainer {
+	GDCLASS(StyleBoxPreview, VBoxContainer);
 
-	GDCLASS(StyleBoxEditor, Control);
-
-	Panel *panel;
-	Panel *preview;
-
+	Control *preview;
 	Ref<StyleBox> stylebox;
 
 	void _sb_changed();
+	void _redraw();
 
 protected:
 	static void _bind_methods();
@@ -52,23 +52,24 @@ protected:
 public:
 	void edit(const Ref<StyleBox> &p_stylebox);
 
-	StyleBoxEditor();
+	StyleBoxPreview();
+};
+
+class EditorInspectorPluginStyleBox : public EditorInspectorPlugin {
+	GDCLASS(EditorInspectorPluginStyleBox, EditorInspectorPlugin);
+
+public:
+	virtual bool can_handle(Object *p_object) override;
+	virtual void parse_begin(Object *p_object) override;
+	virtual bool parse_property(Object *p_object, const Variant::Type p_type, const String &p_path, const PropertyHint p_hint, const String &p_hint_text, const uint32_t p_usage, const bool p_wide = false) override;
+	virtual void parse_end() override;
 };
 
 class StyleBoxEditorPlugin : public EditorPlugin {
-
 	GDCLASS(StyleBoxEditorPlugin, EditorPlugin);
 
-	StyleBoxEditor *stylebox_editor;
-	EditorNode *editor;
-	Button *button;
-
 public:
-	virtual String get_name() const { return "StyleBox"; }
-	bool has_main_screen() const { return false; }
-	virtual void edit(Object *p_node);
-	virtual bool handles(Object *p_node) const;
-	virtual void make_visible(bool p_visible);
+	virtual String get_name() const override { return "StyleBox"; }
 
 	StyleBoxEditorPlugin(EditorNode *p_node);
 };

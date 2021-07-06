@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,10 +27,16 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
-#include <alloca.h>
 
-#define GLES3_INCLUDE_H <ES3/gl.h>
+#include <alloca.h>
 
 #define PLATFORM_REFCOUNT
 
 #define PTHREAD_RENAME_SELF
+
+#define _weakify(var) __weak typeof(var) GDWeak_##var = var;
+#define _strongify(var)                                      \
+	_Pragma("clang diagnostic push")                         \
+			_Pragma("clang diagnostic ignored \"-Wshadow\"") \
+					__strong typeof(var) var = GDWeak_##var; \
+	_Pragma("clang diagnostic pop")

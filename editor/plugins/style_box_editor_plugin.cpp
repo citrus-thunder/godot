@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,82 +27,72 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "style_box_editor_plugin.h"
 
-void StyleBoxEditor::edit(const Ref<StyleBox> &p_stylebox) {
+#include "editor/editor_scale.h"
 
-	if (stylebox.is_valid())
-		stylebox->disconnect("changed", this, "_sb_changed");
-	stylebox = p_stylebox;
-	if (p_stylebox.is_valid()) {
-		preview->add_style_override("panel", stylebox);
-		stylebox->connect("changed", this, "_sb_changed");
-	}
+bool EditorInspectorPluginStyleBox::can_handle(Object *p_object) {
+	return Object::cast_to<StyleBox>(p_object) != nullptr;
 }
 
-void StyleBoxEditor::_sb_changed() {
+void EditorInspectorPluginStyleBox::parse_begin(Object *p_object) {
+	Ref<StyleBox> sb = Ref<StyleBox>(Object::cast_to<StyleBox>(p_object));
 
+	StyleBoxPreview *preview = memnew(StyleBoxPreview);
+	preview->edit(sb);
+	add_custom_control(preview);
+}
+
+bool EditorInspectorPluginStyleBox::parse_property(Object *p_object, const Variant::Type p_type, const String &p_path, PropertyHint p_hint, const String &p_hint_text, const uint32_t p_usage, bool p_wide) {
+	return false; //do not want
+}
+
+void EditorInspectorPluginStyleBox::parse_end() {
+}
+
+void StyleBoxPreview::edit(const Ref<StyleBox> &p_stylebox) {
+	if (stylebox.is_valid()) {
+		stylebox->disconnect("changed", callable_mp(this, &StyleBoxPreview::_sb_changed));
+	}
+	stylebox = p_stylebox;
+	if (p_stylebox.is_valid()) {
+		preview->add_theme_style_override("panel", stylebox);
+		stylebox->connect("changed", callable_mp(this, &StyleBoxPreview::_sb_changed));
+	}
+	_sb_changed();
+}
+
+void StyleBoxPreview::_sb_changed() {
 	preview->update();
 }
 
-void StyleBoxEditor::_bind_methods() {
+void StyleBoxPreview::_redraw() {
+	if (stylebox.is_valid()) {
+		Rect2 preview_rect = preview->get_rect();
 
-	ClassDB::bind_method("_sb_changed", &StyleBoxEditor::_sb_changed);
-	//ClassDB::bind_method("_import",&StyleBoxEditor::_import);
-	//ClassDB::bind_method("_import_accept",&StyleBoxEditor::_import_accept);
-	//ClassDB::bind_method("_preview_text_changed",&StyleBoxEditor::_preview_text_changed);
-}
+		// Re-adjust preview panel to fit all drawn content
+		Rect2 draw_rect = stylebox->get_draw_rect(preview_rect);
+		preview_rect.size -= draw_rect.size - preview_rect.size;
+		preview_rect.position -= draw_rect.position - preview_rect.position;
 
-StyleBoxEditor::StyleBoxEditor() {
-
-	panel = memnew(Panel);
-	add_child(panel);
-	panel->set_anchors_and_margins_preset(Control::PRESET_WIDE);
-
-	Label *l = memnew(Label);
-	l->set_text(TTR("StyleBox Preview:"));
-	l->set_position(Point2(5, 5));
-	panel->add_child(l);
-
-	preview = memnew(Panel);
-	panel->add_child(preview);
-	preview->set_position(Point2(50, 50));
-	preview->set_size(Size2(200, 100));
-}
-
-void StyleBoxEditorPlugin::edit(Object *p_node) {
-
-	if (Object::cast_to<StyleBox>(p_node)) {
-		stylebox_editor->edit(Object::cast_to<StyleBox>(p_node));
-		stylebox_editor->show();
-	} else
-		stylebox_editor->hide();
-}
-
-bool StyleBoxEditorPlugin::handles(Object *p_node) const {
-
-	return p_node->is_class("StyleBox");
-}
-
-void StyleBoxEditorPlugin::make_visible(bool p_visible) {
-
-	if (p_visible) {
-		button->show();
-		EditorNode::get_singleton()->make_bottom_panel_item_visible(stylebox_editor);
-
-	} else {
-		if (stylebox_editor->is_visible_in_tree())
-			EditorNode::get_singleton()->hide_bottom_panel();
-		button->hide();
+		preview->draw_style_box(stylebox, preview_rect);
 	}
 }
 
+void StyleBoxPreview::_bind_methods() {
+}
+
+StyleBoxPreview::StyleBoxPreview() {
+	preview = memnew(Control);
+	preview->set_custom_minimum_size(Size2(0, 150 * EDSCALE));
+	preview->set_clip_contents(true);
+	preview->connect("draw", callable_mp(this, &StyleBoxPreview::_redraw));
+	add_margin_child(TTR("Preview:"), preview);
+}
+
 StyleBoxEditorPlugin::StyleBoxEditorPlugin(EditorNode *p_node) {
-
-	stylebox_editor = memnew(StyleBoxEditor);
-	stylebox_editor->set_custom_minimum_size(Size2(0, 250));
-
-	//p_node->get_viewport()->add_child(stylebox_editor);
-	button = p_node->add_bottom_panel_item("StyleBox", stylebox_editor);
-	button->hide();
+	Ref<EditorInspectorPluginStyleBox> inspector_plugin;
+	inspector_plugin.instantiate();
+	add_inspector_plugin(inspector_plugin);
 }

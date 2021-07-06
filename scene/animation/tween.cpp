@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,205 +27,572 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "tween.h"
-#include "method_bind_ext.gen.inc"
 
-void Tween::_add_pending_command(StringName p_key, const Variant &p_arg1, const Variant &p_arg2, const Variant &p_arg3, const Variant &p_arg4, const Variant &p_arg5, const Variant &p_arg6, const Variant &p_arg7, const Variant &p_arg8, const Variant &p_arg9, const Variant &p_arg10) {
+#include "scene/main/node.h"
 
-	pending_commands.push_back(PendingCommand());
-	PendingCommand &cmd = pending_commands.back()->get();
-
-	cmd.key = p_key;
-	int &count = cmd.args;
-	if (p_arg10.get_type() != Variant::NIL)
-		count = 10;
-	else if (p_arg9.get_type() != Variant::NIL)
-		count = 9;
-	else if (p_arg8.get_type() != Variant::NIL)
-		count = 8;
-	else if (p_arg7.get_type() != Variant::NIL)
-		count = 7;
-	else if (p_arg6.get_type() != Variant::NIL)
-		count = 6;
-	else if (p_arg5.get_type() != Variant::NIL)
-		count = 5;
-	else if (p_arg4.get_type() != Variant::NIL)
-		count = 4;
-	else if (p_arg3.get_type() != Variant::NIL)
-		count = 3;
-	else if (p_arg2.get_type() != Variant::NIL)
-		count = 2;
-	else if (p_arg1.get_type() != Variant::NIL)
-		count = 1;
-	if (count > 0)
-		cmd.arg[0] = p_arg1;
-	if (count > 1)
-		cmd.arg[1] = p_arg2;
-	if (count > 2)
-		cmd.arg[2] = p_arg3;
-	if (count > 3)
-		cmd.arg[3] = p_arg4;
-	if (count > 4)
-		cmd.arg[4] = p_arg5;
-	if (count > 5)
-		cmd.arg[5] = p_arg6;
-	if (count > 6)
-		cmd.arg[6] = p_arg7;
-	if (count > 7)
-		cmd.arg[7] = p_arg8;
-	if (count > 8)
-		cmd.arg[8] = p_arg9;
-	if (count > 9)
-		cmd.arg[9] = p_arg10;
+void Tweener::set_tween(Ref<Tween> p_tween) {
+	tween = p_tween;
 }
 
-void Tween::_process_pending_commands() {
-
-	for (List<PendingCommand>::Element *E = pending_commands.front(); E; E = E->next()) {
-
-		PendingCommand &cmd = E->get();
-		Variant::CallError err;
-		Variant *arg[10] = {
-			&cmd.arg[0],
-			&cmd.arg[1],
-			&cmd.arg[2],
-			&cmd.arg[3],
-			&cmd.arg[4],
-			&cmd.arg[5],
-			&cmd.arg[6],
-			&cmd.arg[7],
-			&cmd.arg[8],
-			&cmd.arg[9],
-		};
-		this->call(cmd.key, (const Variant **)arg, cmd.args, err);
-	}
-	pending_commands.clear();
+void Tweener::_bind_methods() {
+	ADD_SIGNAL(MethodInfo("finished"));
 }
 
-bool Tween::_set(const StringName &p_name, const Variant &p_value) {
-
-	String name = p_name;
-
-	if (name == "playback/speed" || name == "speed") { //bw compatibility
-		set_speed_scale(p_value);
-
-	} else if (name == "playback/active") {
-		set_active(p_value);
-
-	} else if (name == "playback/repeat") {
-		set_repeat(p_value);
-	}
-	return true;
-}
-
-bool Tween::_get(const StringName &p_name, Variant &r_ret) const {
-
-	String name = p_name;
-
-	if (name == "playback/speed") { //bw compatibility
-
-		r_ret = speed_scale;
-	} else if (name == "playback/active") {
-
-		r_ret = is_active();
-	} else if (name == "playback/repeat") {
-
-		r_ret = is_repeat();
+void Tween::start_tweeners() {
+	if (tweeners.is_empty()) {
+		dead = true;
+		ERR_FAIL_MSG("Tween without commands, aborting.");
 	}
 
-	return true;
+	for (List<Ref<Tweener>>::Element *E = tweeners.write[current_step].front(); E; E = E->next()) {
+		E->get()->start();
+	}
 }
 
-void Tween::_get_property_list(List<PropertyInfo> *p_list) const {
+Ref<PropertyTweener> Tween::tween_property(Object *p_target, NodePath p_property, Variant p_to, float p_duration) {
+	ERR_FAIL_NULL_V(p_target, nullptr);
+	ERR_FAIL_COND_V_MSG(invalid, nullptr, "Tween was created outside the scene tree, can't use Tweeners.");
+	ERR_FAIL_COND_V_MSG(started, nullptr, "Can't append to a Tween that has started. Use stop() first.");
 
-	p_list->push_back(PropertyInfo(Variant::BOOL, "playback/active", PROPERTY_HINT_NONE, ""));
-	p_list->push_back(PropertyInfo(Variant::BOOL, "playback/repeat", PROPERTY_HINT_NONE, ""));
-	p_list->push_back(PropertyInfo(Variant::REAL, "playback/speed", PROPERTY_HINT_RANGE, "-64,64,0.01"));
+	Ref<PropertyTweener> tweener = memnew(PropertyTweener(p_target, p_property, p_to, p_duration));
+	append(tweener);
+	return tweener;
 }
 
-void Tween::_notification(int p_what) {
+Ref<IntervalTweener> Tween::tween_interval(float p_time) {
+	ERR_FAIL_COND_V_MSG(invalid, nullptr, "Tween was created outside the scene tree, can't use Tweeners.");
+	ERR_FAIL_COND_V_MSG(started, nullptr, "Can't append to a Tween that has started. Use stop() first.");
 
-	switch (p_what) {
+	Ref<IntervalTweener> tweener = memnew(IntervalTweener(p_time));
+	append(tweener);
+	return tweener;
+}
 
-		case NOTIFICATION_ENTER_TREE: {
+Ref<CallbackTweener> Tween::tween_callback(Callable p_callback) {
+	ERR_FAIL_COND_V_MSG(invalid, nullptr, "Tween was created outside the scene tree, can't use Tweeners.");
+	ERR_FAIL_COND_V_MSG(started, nullptr, "Can't append to a Tween that has started. Use stop() first.");
 
-			if (!processing) {
-				//make sure that a previous process state was not saved
-				//only process if "processing" is set
-				set_physics_process_internal(false);
-				set_process_internal(false);
+	Ref<CallbackTweener> tweener = memnew(CallbackTweener(p_callback));
+	append(tweener);
+	return tweener;
+}
+
+Ref<MethodTweener> Tween::tween_method(Callable p_callback, float p_from, float p_to, float p_duration) {
+	ERR_FAIL_COND_V_MSG(invalid, nullptr, "Tween was created outside the scene tree, can't use Tweeners.");
+	ERR_FAIL_COND_V_MSG(started, nullptr, "Can't append to a Tween that has started. Use stop() first.");
+
+	Ref<MethodTweener> tweener = memnew(MethodTweener(p_callback, p_from, p_to, p_duration));
+	append(tweener);
+	return tweener;
+}
+
+Ref<Tween> Tween::append(Ref<Tweener> p_tweener) {
+	ERR_FAIL_COND_V_MSG(invalid, nullptr, "Tween was created outside the scene tree, can't use Tweeners.");
+	ERR_FAIL_COND_V_MSG(started, nullptr, "Can't append to a Tween that has started. Use stop() first.");
+	p_tweener->set_tween(this);
+
+	if (parallel_enabled) {
+		current_step = MAX(current_step, 0);
+	} else {
+		current_step++;
+	}
+	parallel_enabled = default_parallel;
+
+	tweeners.resize(current_step + 1);
+	tweeners.write[current_step].push_back(p_tweener);
+
+	return this;
+}
+
+void Tween::stop() {
+	started = false;
+	running = false;
+	dead = false;
+}
+
+void Tween::pause() {
+	running = false;
+}
+
+void Tween::play() {
+	ERR_FAIL_COND_MSG(invalid, "Tween invalid, can't play.");
+	ERR_FAIL_COND_MSG(dead, "Can't play finished Tween, use stop() first to reset its state.");
+	running = true;
+}
+
+void Tween::kill() {
+	running = false; // For the sake of is_running().
+	dead = true;
+}
+
+bool Tween::is_running() {
+	return running;
+}
+
+void Tween::set_valid(bool p_valid) {
+	invalid = !p_valid;
+}
+
+bool Tween::is_valid() {
+	return invalid;
+}
+
+Ref<Tween> Tween::bind_node(Node *p_node) {
+	bound_node = p_node->get_instance_id();
+	is_bound = true;
+	return this;
+}
+
+Ref<Tween> Tween::set_process_mode(TweenProcessMode p_mode) {
+	process_mode = p_mode;
+	return this;
+}
+
+Tween::TweenProcessMode Tween::get_process_mode() {
+	return process_mode;
+}
+
+Ref<Tween> Tween::set_pause_mode(TweenPauseMode p_mode) {
+	pause_mode = p_mode;
+	return this;
+}
+
+Tween::TweenPauseMode Tween::get_pause_mode() {
+	return pause_mode;
+}
+
+Ref<Tween> Tween::set_parallel(bool p_parallel) {
+	default_parallel = p_parallel;
+	parallel_enabled = p_parallel;
+	return this;
+}
+
+Ref<Tween> Tween::set_loops(int p_loops) {
+	loops = p_loops;
+	return this;
+}
+
+Ref<Tween> Tween::set_speed_scale(float p_speed) {
+	speed_scale = p_speed;
+	return this;
+}
+
+Ref<Tween> Tween::set_trans(TransitionType p_trans) {
+	default_transition = p_trans;
+	return this;
+}
+
+Tween::TransitionType Tween::get_trans() {
+	return default_transition;
+}
+
+Ref<Tween> Tween::set_ease(EaseType p_ease) {
+	default_ease = p_ease;
+	return this;
+}
+
+Tween::EaseType Tween::get_ease() {
+	return default_ease;
+}
+
+Ref<Tween> Tween::parallel() {
+	parallel_enabled = true;
+	return this;
+}
+
+Ref<Tween> Tween::chain() {
+	parallel_enabled = false;
+	return this;
+}
+
+bool Tween::custom_step(float p_delta) {
+	bool r = running;
+	running = true;
+	bool ret = step(p_delta);
+	running = running && r; // Running might turn false when Tween finished.
+	return ret;
+}
+
+bool Tween::step(float p_delta) {
+	ERR_FAIL_COND_V_MSG(tweeners.is_empty(), false, "Tween started, but has no Tweeners.");
+
+	if (dead) {
+		return false;
+	}
+
+	if (!running) {
+		return true;
+	}
+
+	if (is_bound) {
+		Object *bound_instance = ObjectDB::get_instance(bound_node);
+		if (bound_instance) {
+			Node *bound_node = Object::cast_to<Node>(bound_instance);
+			// This can't by anything else than Node, so we can omit checking if casting succeeded.
+			if (!bound_node->is_inside_tree()) {
+				return true;
 			}
-		} break;
-		case NOTIFICATION_READY: {
-
-		} break;
-		case NOTIFICATION_INTERNAL_PROCESS: {
-			if (tween_process_mode == TWEEN_PROCESS_PHYSICS)
-				break;
-
-			if (processing)
-				_tween_process(get_process_delta_time());
-		} break;
-		case NOTIFICATION_INTERNAL_PHYSICS_PROCESS: {
-
-			if (tween_process_mode == TWEEN_PROCESS_IDLE)
-				break;
-
-			if (processing)
-				_tween_process(get_physics_process_delta_time());
-		} break;
-		case NOTIFICATION_EXIT_TREE: {
-
-			stop_all();
-		} break;
+		} else {
+			return false;
+		}
 	}
+
+	if (!started) {
+		current_step = 0;
+		loops_done = 0;
+		start_tweeners();
+		started = true;
+	}
+
+	float rem_delta = p_delta * speed_scale;
+	bool step_active = false;
+
+	while (rem_delta > 0 && running) {
+		float step_delta = rem_delta;
+		step_active = false;
+
+		for (List<Ref<Tweener>>::Element *E = tweeners.write[current_step].front(); E; E = E->next()) {
+			// Modified inside Tweener.step().
+			float temp_delta = rem_delta;
+			// Turns to true if any Tweener returns true (i.e. is still not finished).
+			step_active = E->get()->step(temp_delta) || step_active;
+			step_delta = MIN(temp_delta, rem_delta);
+		}
+
+		rem_delta = step_delta;
+
+		if (!step_active) {
+			emit_signal("step_finished", current_step);
+			current_step++;
+
+			if (current_step == tweeners.size()) {
+				loops_done++;
+				if (loops_done == loops) {
+					running = false;
+					dead = true;
+					emit_signal("finished");
+				} else {
+					emit_signal("loop_finished", loops_done);
+					current_step = 0;
+					start_tweeners();
+				}
+			} else {
+				start_tweeners();
+			}
+		}
+	}
+
+	return true;
+}
+
+bool Tween::should_pause() {
+	if (is_bound && pause_mode == TWEEN_PAUSE_BOUND) {
+		Object *bound_instance = ObjectDB::get_instance(bound_node);
+		if (bound_instance) {
+			Node *bound_node = Object::cast_to<Node>(bound_instance);
+			return !bound_node->can_process();
+		}
+	}
+
+	return pause_mode != TWEEN_PAUSE_PROCESS;
+}
+
+Variant Tween::interpolate_variant(Variant p_initial_val, Variant p_delta_val, float p_time, float p_duration, TransitionType p_trans, EaseType p_ease) {
+	ERR_FAIL_INDEX_V(p_trans, TransitionType::TRANS_MAX, Variant());
+	ERR_FAIL_INDEX_V(p_ease, EaseType::EASE_MAX, Variant());
+
+// Helper macro to run equation on sub-elements of the value (e.g. x and y of Vector2).
+#define APPLY_EQUATION(element) \
+	r.element = run_equation(p_trans, p_ease, p_time, i.element, d.element, p_duration);
+
+	switch (p_initial_val.get_type()) {
+		case Variant::BOOL: {
+			return (run_equation(p_trans, p_ease, p_time, p_initial_val, p_delta_val, p_duration)) >= 0.5;
+		}
+
+		case Variant::INT: {
+			return (int)run_equation(p_trans, p_ease, p_time, (int)p_initial_val, (int)p_delta_val, p_duration);
+		}
+
+		case Variant::FLOAT: {
+			return run_equation(p_trans, p_ease, p_time, (real_t)p_initial_val, (real_t)p_delta_val, p_duration);
+		}
+
+		case Variant::VECTOR2: {
+			Vector2 i = p_initial_val;
+			Vector2 d = p_delta_val;
+			Vector2 r;
+
+			APPLY_EQUATION(x);
+			APPLY_EQUATION(y);
+			return r;
+		}
+
+		case Variant::VECTOR2I: {
+			Vector2i i = p_initial_val;
+			Vector2i d = p_delta_val;
+			Vector2i r;
+
+			APPLY_EQUATION(x);
+			APPLY_EQUATION(y);
+			return r;
+		}
+
+		case Variant::RECT2: {
+			Rect2 i = p_initial_val;
+			Rect2 d = p_delta_val;
+			Rect2 r;
+
+			APPLY_EQUATION(position.x);
+			APPLY_EQUATION(position.y);
+			APPLY_EQUATION(size.x);
+			APPLY_EQUATION(size.y);
+			return r;
+		}
+
+		case Variant::RECT2I: {
+			Rect2i i = p_initial_val;
+			Rect2i d = p_delta_val;
+			Rect2i r;
+
+			APPLY_EQUATION(position.x);
+			APPLY_EQUATION(position.y);
+			APPLY_EQUATION(size.x);
+			APPLY_EQUATION(size.y);
+			return r;
+		}
+
+		case Variant::VECTOR3: {
+			Vector3 i = p_initial_val;
+			Vector3 d = p_delta_val;
+			Vector3 r;
+
+			APPLY_EQUATION(x);
+			APPLY_EQUATION(y);
+			APPLY_EQUATION(z);
+			return r;
+		}
+
+		case Variant::VECTOR3I: {
+			Vector3i i = p_initial_val;
+			Vector3i d = p_delta_val;
+			Vector3i r;
+
+			APPLY_EQUATION(x);
+			APPLY_EQUATION(y);
+			APPLY_EQUATION(z);
+			return r;
+		}
+
+		case Variant::TRANSFORM2D: {
+			Transform2D i = p_initial_val;
+			Transform2D d = p_delta_val;
+			Transform2D r;
+
+			APPLY_EQUATION(elements[0][0]);
+			APPLY_EQUATION(elements[0][1]);
+			APPLY_EQUATION(elements[1][0]);
+			APPLY_EQUATION(elements[1][1]);
+			APPLY_EQUATION(elements[2][0]);
+			APPLY_EQUATION(elements[2][1]);
+			return r;
+		}
+
+		case Variant::QUATERNION: {
+			Quaternion i = p_initial_val;
+			Quaternion d = p_delta_val;
+			Quaternion r;
+
+			APPLY_EQUATION(x);
+			APPLY_EQUATION(y);
+			APPLY_EQUATION(z);
+			APPLY_EQUATION(w);
+			return r;
+		}
+
+		case Variant::AABB: {
+			AABB i = p_initial_val;
+			AABB d = p_delta_val;
+			AABB r;
+
+			APPLY_EQUATION(position.x);
+			APPLY_EQUATION(position.y);
+			APPLY_EQUATION(position.z);
+			APPLY_EQUATION(size.x);
+			APPLY_EQUATION(size.y);
+			APPLY_EQUATION(size.z);
+			return r;
+		}
+
+		case Variant::BASIS: {
+			Basis i = p_initial_val;
+			Basis d = p_delta_val;
+			Basis r;
+
+			APPLY_EQUATION(elements[0][0]);
+			APPLY_EQUATION(elements[0][1]);
+			APPLY_EQUATION(elements[0][2]);
+			APPLY_EQUATION(elements[1][0]);
+			APPLY_EQUATION(elements[1][1]);
+			APPLY_EQUATION(elements[1][2]);
+			APPLY_EQUATION(elements[2][0]);
+			APPLY_EQUATION(elements[2][1]);
+			APPLY_EQUATION(elements[2][2]);
+			return r;
+		}
+
+		case Variant::TRANSFORM3D: {
+			Transform3D i = p_initial_val;
+			Transform3D d = p_delta_val;
+			Transform3D r;
+
+			APPLY_EQUATION(basis.elements[0][0]);
+			APPLY_EQUATION(basis.elements[0][1]);
+			APPLY_EQUATION(basis.elements[0][2]);
+			APPLY_EQUATION(basis.elements[1][0]);
+			APPLY_EQUATION(basis.elements[1][1]);
+			APPLY_EQUATION(basis.elements[1][2]);
+			APPLY_EQUATION(basis.elements[2][0]);
+			APPLY_EQUATION(basis.elements[2][1]);
+			APPLY_EQUATION(basis.elements[2][2]);
+			APPLY_EQUATION(origin.x);
+			APPLY_EQUATION(origin.y);
+			APPLY_EQUATION(origin.z);
+			return r;
+		}
+
+		case Variant::COLOR: {
+			Color i = p_initial_val;
+			Color d = p_delta_val;
+			Color r;
+
+			APPLY_EQUATION(r);
+			APPLY_EQUATION(g);
+			APPLY_EQUATION(b);
+			APPLY_EQUATION(a);
+			return r;
+		}
+
+		default: {
+			return p_initial_val;
+		}
+	};
+#undef APPLY_EQUATION
+}
+
+Variant Tween::calculate_delta_value(Variant p_intial_val, Variant p_final_val) {
+	switch (p_intial_val.get_type()) {
+		case Variant::BOOL: {
+			return (int)p_final_val - (int)p_intial_val;
+		}
+
+		case Variant::RECT2: {
+			Rect2 i = p_intial_val;
+			Rect2 f = p_final_val;
+			return Rect2(f.position - i.position, f.size - i.size);
+		}
+
+		case Variant::RECT2I: {
+			Rect2i i = p_intial_val;
+			Rect2i f = p_final_val;
+			return Rect2i(f.position - i.position, f.size - i.size);
+		}
+
+		case Variant::TRANSFORM2D: {
+			Transform2D i = p_intial_val;
+			Transform2D f = p_final_val;
+			return Transform2D(f.elements[0][0] - i.elements[0][0],
+					f.elements[0][1] - i.elements[0][1],
+					f.elements[1][0] - i.elements[1][0],
+					f.elements[1][1] - i.elements[1][1],
+					f.elements[2][0] - i.elements[2][0],
+					f.elements[2][1] - i.elements[2][1]);
+		}
+
+		case Variant::AABB: {
+			AABB i = p_intial_val;
+			AABB f = p_final_val;
+			return AABB(f.position - i.position, f.size - i.size);
+		}
+
+		case Variant::BASIS: {
+			Basis i = p_intial_val;
+			Basis f = p_final_val;
+			return Basis(f.elements[0][0] - i.elements[0][0],
+					f.elements[0][1] - i.elements[0][1],
+					f.elements[0][2] - i.elements[0][2],
+					f.elements[1][0] - i.elements[1][0],
+					f.elements[1][1] - i.elements[1][1],
+					f.elements[1][2] - i.elements[1][2],
+					f.elements[2][0] - i.elements[2][0],
+					f.elements[2][1] - i.elements[2][1],
+					f.elements[2][2] - i.elements[2][2]);
+		}
+
+		case Variant::TRANSFORM3D: {
+			Transform3D i = p_intial_val;
+			Transform3D f = p_final_val;
+			return Transform3D(f.basis.elements[0][0] - i.basis.elements[0][0],
+					f.basis.elements[0][1] - i.basis.elements[0][1],
+					f.basis.elements[0][2] - i.basis.elements[0][2],
+					f.basis.elements[1][0] - i.basis.elements[1][0],
+					f.basis.elements[1][1] - i.basis.elements[1][1],
+					f.basis.elements[1][2] - i.basis.elements[1][2],
+					f.basis.elements[2][0] - i.basis.elements[2][0],
+					f.basis.elements[2][1] - i.basis.elements[2][1],
+					f.basis.elements[2][2] - i.basis.elements[2][2],
+					f.origin.x - i.origin.x,
+					f.origin.y - i.origin.y,
+					f.origin.z - i.origin.z);
+		}
+
+		default: {
+			return Variant::evaluate(Variant::OP_SUBTRACT, p_final_val, p_intial_val);
+		}
+	};
 }
 
 void Tween::_bind_methods() {
+	ClassDB::bind_method(D_METHOD("tween_property", "object", "property", "final_val", "duration"), &Tween::tween_property);
+	ClassDB::bind_method(D_METHOD("tween_interval", "time"), &Tween::tween_interval);
+	ClassDB::bind_method(D_METHOD("tween_callback", "callback"), &Tween::tween_callback);
+	ClassDB::bind_method(D_METHOD("tween_method", "method", "from", "to", "duration"), &Tween::tween_method);
 
-	ClassDB::bind_method(D_METHOD("is_active"), &Tween::is_active);
-	ClassDB::bind_method(D_METHOD("set_active", "active"), &Tween::set_active);
+	ClassDB::bind_method(D_METHOD("custom_step", "delta"), &Tween::custom_step);
+	ClassDB::bind_method(D_METHOD("stop"), &Tween::stop);
+	ClassDB::bind_method(D_METHOD("pause"), &Tween::pause);
+	ClassDB::bind_method(D_METHOD("play"), &Tween::play);
+	ClassDB::bind_method(D_METHOD("kill"), &Tween::kill);
 
-	ClassDB::bind_method(D_METHOD("is_repeat"), &Tween::is_repeat);
-	ClassDB::bind_method(D_METHOD("set_repeat", "repeat"), &Tween::set_repeat);
+	ClassDB::bind_method(D_METHOD("is_running"), &Tween::is_running);
+	ClassDB::bind_method(D_METHOD("is_valid"), &Tween::is_valid);
+	ClassDB::bind_method(D_METHOD("bind_node", "node"), &Tween::bind_node);
+	ClassDB::bind_method(D_METHOD("set_process_mode", "mode"), &Tween::set_process_mode);
+	ClassDB::bind_method(D_METHOD("set_pause_mode", "mode"), &Tween::set_pause_mode);
 
+	ClassDB::bind_method(D_METHOD("set_parallel", "parallel"), &Tween::set_parallel, DEFVAL(true));
+	ClassDB::bind_method(D_METHOD("set_loops", "loops"), &Tween::set_loops, DEFVAL(0));
 	ClassDB::bind_method(D_METHOD("set_speed_scale", "speed"), &Tween::set_speed_scale);
-	ClassDB::bind_method(D_METHOD("get_speed_scale"), &Tween::get_speed_scale);
+	ClassDB::bind_method(D_METHOD("set_trans", "trans"), &Tween::set_trans);
+	ClassDB::bind_method(D_METHOD("set_ease", "ease"), &Tween::set_ease);
 
-	ClassDB::bind_method(D_METHOD("set_tween_process_mode", "mode"), &Tween::set_tween_process_mode);
-	ClassDB::bind_method(D_METHOD("get_tween_process_mode"), &Tween::get_tween_process_mode);
+	ClassDB::bind_method(D_METHOD("parallel"), &Tween::parallel);
+	ClassDB::bind_method(D_METHOD("chain"), &Tween::chain);
 
-	ClassDB::bind_method(D_METHOD("start"), &Tween::start);
-	ClassDB::bind_method(D_METHOD("reset", "object", "key"), &Tween::reset, DEFVAL(""));
-	ClassDB::bind_method(D_METHOD("reset_all"), &Tween::reset_all);
-	ClassDB::bind_method(D_METHOD("stop", "object", "key"), &Tween::stop, DEFVAL(""));
-	ClassDB::bind_method(D_METHOD("stop_all"), &Tween::stop_all);
-	ClassDB::bind_method(D_METHOD("resume", "object", "key"), &Tween::resume, DEFVAL(""));
-	ClassDB::bind_method(D_METHOD("resume_all"), &Tween::resume_all);
-	ClassDB::bind_method(D_METHOD("remove", "object", "key"), &Tween::remove, DEFVAL(""));
-	ClassDB::bind_method(D_METHOD("_remove", "object", "key", "first_only"), &Tween::_remove);
-	ClassDB::bind_method(D_METHOD("remove_all"), &Tween::remove_all);
-	ClassDB::bind_method(D_METHOD("seek", "time"), &Tween::seek);
-	ClassDB::bind_method(D_METHOD("tell"), &Tween::tell);
-	ClassDB::bind_method(D_METHOD("get_runtime"), &Tween::get_runtime);
+	ClassDB::bind_method(D_METHOD("interpolate_value", "trans_type", "ease_type", "elapsed_time", "initial_value", "delta_value", "duration"), &Tween::interpolate_variant);
 
-	ClassDB::bind_method(D_METHOD("interpolate_property", "object", "property", "initial_val", "final_val", "duration", "trans_type", "ease_type", "delay"), &Tween::interpolate_property, DEFVAL(0));
-	ClassDB::bind_method(D_METHOD("interpolate_method", "object", "method", "initial_val", "final_val", "duration", "trans_type", "ease_type", "delay"), &Tween::interpolate_method, DEFVAL(0));
-	ClassDB::bind_method(D_METHOD("interpolate_callback", "object", "duration", "callback", "arg1", "arg2", "arg3", "arg4", "arg5"), &Tween::interpolate_callback, DEFVAL(Variant()), DEFVAL(Variant()), DEFVAL(Variant()), DEFVAL(Variant()), DEFVAL(Variant()));
-	ClassDB::bind_method(D_METHOD("interpolate_deferred_callback", "object", "duration", "callback", "arg1", "arg2", "arg3", "arg4", "arg5"), &Tween::interpolate_deferred_callback, DEFVAL(Variant()), DEFVAL(Variant()), DEFVAL(Variant()), DEFVAL(Variant()), DEFVAL(Variant()));
-	ClassDB::bind_method(D_METHOD("follow_property", "object", "property", "initial_val", "target", "target_property", "duration", "trans_type", "ease_type", "delay"), &Tween::follow_property, DEFVAL(0));
-	ClassDB::bind_method(D_METHOD("follow_method", "object", "method", "initial_val", "target", "target_method", "duration", "trans_type", "ease_type", "delay"), &Tween::follow_method, DEFVAL(0));
-	ClassDB::bind_method(D_METHOD("targeting_property", "object", "property", "initial", "initial_val", "final_val", "duration", "trans_type", "ease_type", "delay"), &Tween::targeting_property, DEFVAL(0));
-	ClassDB::bind_method(D_METHOD("targeting_method", "object", "method", "initial", "initial_method", "final_val", "duration", "trans_type", "ease_type", "delay"), &Tween::targeting_method, DEFVAL(0));
-
-	ADD_SIGNAL(MethodInfo("tween_started", PropertyInfo(Variant::OBJECT, "object"), PropertyInfo(Variant::STRING, "key")));
-	ADD_SIGNAL(MethodInfo("tween_step", PropertyInfo(Variant::OBJECT, "object"), PropertyInfo(Variant::STRING, "key"), PropertyInfo(Variant::REAL, "elapsed"), PropertyInfo(Variant::OBJECT, "value")));
-	ADD_SIGNAL(MethodInfo("tween_completed", PropertyInfo(Variant::OBJECT, "object"), PropertyInfo(Variant::STRING, "key")));
-
-	ADD_PROPERTY(PropertyInfo(Variant::INT, "playback_process_mode", PROPERTY_HINT_ENUM, "Physics,Idle"), "set_tween_process_mode", "get_tween_process_mode");
+	ADD_SIGNAL(MethodInfo("step_finished", PropertyInfo(Variant::INT, "idx")));
+	ADD_SIGNAL(MethodInfo("loop_finished", PropertyInfo(Variant::INT, "loop_count")));
+	ADD_SIGNAL(MethodInfo("finished"));
 
 	BIND_ENUM_CONSTANT(TWEEN_PROCESS_PHYSICS);
 	BIND_ENUM_CONSTANT(TWEEN_PROCESS_IDLE);
+
+	BIND_ENUM_CONSTANT(TWEEN_PAUSE_BOUND);
+	BIND_ENUM_CONSTANT(TWEEN_PAUSE_STOP);
+	BIND_ENUM_CONSTANT(TWEEN_PAUSE_PROCESS);
 
 	BIND_ENUM_CONSTANT(TRANS_LINEAR);
 	BIND_ENUM_CONSTANT(TRANS_SINE);
@@ -245,1186 +612,276 @@ void Tween::_bind_methods() {
 	BIND_ENUM_CONSTANT(EASE_OUT_IN);
 }
 
-Variant &Tween::_get_initial_val(InterpolateData &p_data) {
-
-	switch (p_data.type) {
-		case INTER_PROPERTY:
-		case INTER_METHOD:
-		case FOLLOW_PROPERTY:
-		case FOLLOW_METHOD:
-			return p_data.initial_val;
-
-		case TARGETING_PROPERTY:
-		case TARGETING_METHOD: {
-
-			Object *object = ObjectDB::get_instance(p_data.target_id);
-			ERR_FAIL_COND_V(object == NULL, p_data.initial_val);
-
-			static Variant initial_val;
-			if (p_data.type == TARGETING_PROPERTY) {
-
-				bool valid = false;
-				initial_val = object->get_indexed(p_data.target_key, &valid);
-				ERR_FAIL_COND_V(!valid, p_data.initial_val);
-			} else {
-
-				Variant::CallError error;
-				initial_val = object->call(p_data.target_key[0], NULL, 0, error);
-				ERR_FAIL_COND_V(error.error != Variant::CallError::CALL_OK, p_data.initial_val);
-			}
-			return initial_val;
-		} break;
-	}
-	return p_data.delta_val;
+Ref<PropertyTweener> PropertyTweener::from(Variant p_value) {
+	initial_val = p_value;
+	do_continue = false;
+	return this;
 }
 
-Variant &Tween::_get_delta_val(InterpolateData &p_data) {
-
-	switch (p_data.type) {
-		case INTER_PROPERTY:
-		case INTER_METHOD:
-			return p_data.delta_val;
-
-		case FOLLOW_PROPERTY:
-		case FOLLOW_METHOD: {
-
-			Object *target = ObjectDB::get_instance(p_data.target_id);
-			ERR_FAIL_COND_V(target == NULL, p_data.initial_val);
-
-			Variant final_val;
-
-			if (p_data.type == FOLLOW_PROPERTY) {
-
-				bool valid = false;
-				final_val = target->get_indexed(p_data.target_key, &valid);
-				ERR_FAIL_COND_V(!valid, p_data.initial_val);
-			} else {
-
-				Variant::CallError error;
-				final_val = target->call(p_data.target_key[0], NULL, 0, error);
-				ERR_FAIL_COND_V(error.error != Variant::CallError::CALL_OK, p_data.initial_val);
-			}
-
-			// convert INT to REAL is better for interpolaters
-			if (final_val.get_type() == Variant::INT) final_val = final_val.operator real_t();
-			_calc_delta_val(p_data.initial_val, final_val, p_data.delta_val);
-			return p_data.delta_val;
-		} break;
-
-		case TARGETING_PROPERTY:
-		case TARGETING_METHOD: {
-
-			Variant initial_val = _get_initial_val(p_data);
-			// convert INT to REAL is better for interpolaters
-			if (initial_val.get_type() == Variant::INT) initial_val = initial_val.operator real_t();
-
-			//_calc_delta_val(p_data.initial_val, p_data.final_val, p_data.delta_val);
-			_calc_delta_val(initial_val, p_data.final_val, p_data.delta_val);
-			return p_data.delta_val;
-		} break;
-	}
-	return p_data.initial_val;
+Ref<PropertyTweener> PropertyTweener::from_current() {
+	do_continue = false;
+	return this;
 }
 
-Variant Tween::_run_equation(InterpolateData &p_data) {
+Ref<PropertyTweener> PropertyTweener::as_relative() {
+	relative = true;
+	return this;
+}
 
-	Variant &initial_val = _get_initial_val(p_data);
-	Variant &delta_val = _get_delta_val(p_data);
+Ref<PropertyTweener> PropertyTweener::set_trans(Tween::TransitionType p_trans) {
+	trans_type = p_trans;
+	return this;
+}
+
+Ref<PropertyTweener> PropertyTweener::set_ease(Tween::EaseType p_ease) {
+	ease_type = p_ease;
+	return this;
+}
+
+Ref<PropertyTweener> PropertyTweener::set_delay(float p_delay) {
+	delay = p_delay;
+	return this;
+}
+
+void PropertyTweener::start() {
+	elapsed_time = 0;
+	finished = false;
+
+	Object *target_instance = ObjectDB::get_instance(target);
+	if (!target_instance) {
+		WARN_PRINT("Target object freed before starting, aborting Tweener.");
+		return;
+	}
+
+	if (do_continue) {
+		initial_val = target_instance->get_indexed(property);
+	}
+
+	if (relative) {
+		final_val = Variant::evaluate(Variant::Operator::OP_ADD, initial_val, base_final_val);
+	}
+
+	delta_val = tween->calculate_delta_value(initial_val, final_val);
+}
+
+bool PropertyTweener::step(float &r_delta) {
+	if (finished) {
+		// This is needed in case there's a parallel Tweener with longer duration.
+		return false;
+	}
+
+	Object *target_instance = ObjectDB::get_instance(target);
+	if (!target_instance) {
+		return false;
+	}
+	elapsed_time += r_delta;
+
+	if (elapsed_time < delay) {
+		r_delta = 0;
+		return true;
+	}
+
+	float time = MIN(elapsed_time - delay, duration);
+	target_instance->set_indexed(property, tween->interpolate_variant(initial_val, delta_val, time, duration, trans_type, ease_type));
+
+	if (time < duration) {
+		r_delta = 0;
+		return true;
+	} else {
+		finished = true;
+		r_delta = elapsed_time - delay - duration;
+		emit_signal("finished");
+		return false;
+	}
+}
+
+void PropertyTweener::set_tween(Ref<Tween> p_tween) {
+	tween = p_tween;
+	if (trans_type == Tween::TRANS_MAX) {
+		trans_type = tween->get_trans();
+	}
+	if (ease_type == Tween::EASE_MAX) {
+		ease_type = tween->get_ease();
+	}
+}
+
+void PropertyTweener::_bind_methods() {
+	ClassDB::bind_method(D_METHOD("from", "value"), &PropertyTweener::from);
+	ClassDB::bind_method(D_METHOD("from_current"), &PropertyTweener::from_current);
+	ClassDB::bind_method(D_METHOD("as_relative"), &PropertyTweener::as_relative);
+	ClassDB::bind_method(D_METHOD("set_trans", "trans"), &PropertyTweener::set_trans);
+	ClassDB::bind_method(D_METHOD("set_ease", "ease"), &PropertyTweener::set_ease);
+	ClassDB::bind_method(D_METHOD("set_delay", "delay"), &PropertyTweener::set_delay);
+}
+
+PropertyTweener::PropertyTweener(Object *p_target, NodePath p_property, Variant p_to, float p_duration) {
+	target = p_target->get_instance_id();
+	property = p_property.get_as_property_path().get_subnames();
+	initial_val = p_target->get_indexed(property);
+	base_final_val = p_to;
+	final_val = base_final_val;
+	duration = p_duration;
+}
+
+PropertyTweener::PropertyTweener() {
+	ERR_FAIL_MSG("Can't create empty PropertyTweener. Use get_tree().tween_property() or tween_property() instead.");
+}
+
+void IntervalTweener::start() {
+	elapsed_time = 0;
+	finished = false;
+}
+
+bool IntervalTweener::step(float &r_delta) {
+	if (finished) {
+		return false;
+	}
+
+	elapsed_time += r_delta;
+
+	if (elapsed_time < duration) {
+		r_delta = 0;
+		return true;
+	} else {
+		finished = true;
+		r_delta = elapsed_time - duration;
+		emit_signal("finished");
+		return false;
+	}
+}
+
+IntervalTweener::IntervalTweener(float p_time) {
+	duration = p_time;
+}
+
+IntervalTweener::IntervalTweener() {
+	ERR_FAIL_MSG("Can't create empty IntervalTweener. Use get_tree().tween_interval() instead.");
+}
+
+Ref<CallbackTweener> CallbackTweener::set_delay(float p_delay) {
+	delay = p_delay;
+	return this;
+}
+
+void CallbackTweener::start() {
+	elapsed_time = 0;
+	finished = false;
+}
+
+bool CallbackTweener::step(float &r_delta) {
+	if (finished) {
+		return false;
+	}
+
+	elapsed_time += r_delta;
+	if (elapsed_time >= delay) {
+		Variant result;
+		Callable::CallError ce;
+		callback.call(nullptr, 0, result, ce);
+		if (ce.error != Callable::CallError::CALL_OK) {
+			ERR_FAIL_V_MSG(false, "Error calling method from CallbackTweener: " + Variant::get_call_error_text(this, callback.get_method(), nullptr, 0, ce));
+		}
+
+		finished = true;
+		r_delta = elapsed_time - delay;
+		emit_signal("finished");
+		return false;
+	}
+
+	r_delta = 0;
+	return true;
+}
+
+void CallbackTweener::_bind_methods() {
+	ClassDB::bind_method(D_METHOD("set_delay", "delay"), &CallbackTweener::set_delay);
+}
+
+CallbackTweener::CallbackTweener(Callable p_callback) {
+	callback = p_callback;
+}
+
+CallbackTweener::CallbackTweener() {
+	ERR_FAIL_MSG("Can't create empty CallbackTweener. Use get_tree().tween_callback() instead.");
+}
+
+Ref<MethodTweener> MethodTweener::set_delay(float p_delay) {
+	delay = p_delay;
+	return this;
+}
+
+Ref<MethodTweener> MethodTweener::set_trans(Tween::TransitionType p_trans) {
+	trans_type = p_trans;
+	return this;
+}
+
+Ref<MethodTweener> MethodTweener::set_ease(Tween::EaseType p_ease) {
+	ease_type = p_ease;
+	return this;
+}
+
+void MethodTweener::start() {
+	elapsed_time = 0;
+	finished = false;
+}
+
+bool MethodTweener::step(float &r_delta) {
+	if (finished) {
+		return false;
+	}
+
+	elapsed_time += r_delta;
+
+	if (elapsed_time < delay) {
+		r_delta = 0;
+		return true;
+	}
+
+	float time = MIN(elapsed_time - delay, duration);
+	Variant current_val = tween->interpolate_variant(initial_val, delta_val, time, duration, trans_type, ease_type);
+	const Variant **argptr = (const Variant **)alloca(sizeof(Variant *));
+	argptr[0] = &current_val;
+
 	Variant result;
-
-#define APPLY_EQUATION(element) \
-	r.element = _run_equation(p_data.trans_type, p_data.ease_type, p_data.elapsed - p_data.delay, i.element, d.element, p_data.duration);
-
-	switch (initial_val.get_type()) {
-
-		case Variant::BOOL:
-			result = (_run_equation(p_data.trans_type, p_data.ease_type, p_data.elapsed - p_data.delay, initial_val, delta_val, p_data.duration)) >= 0.5;
-			break;
-
-		case Variant::INT:
-			result = (int)_run_equation(p_data.trans_type, p_data.ease_type, p_data.elapsed - p_data.delay, (int)initial_val, (int)delta_val, p_data.duration);
-			break;
-
-		case Variant::REAL:
-			result = _run_equation(p_data.trans_type, p_data.ease_type, p_data.elapsed - p_data.delay, (real_t)initial_val, (real_t)delta_val, p_data.duration);
-			break;
-
-		case Variant::VECTOR2: {
-			Vector2 i = initial_val;
-			Vector2 d = delta_val;
-			Vector2 r;
-
-			APPLY_EQUATION(x);
-			APPLY_EQUATION(y);
-
-			result = r;
-		} break;
-
-		case Variant::VECTOR3: {
-			Vector3 i = initial_val;
-			Vector3 d = delta_val;
-			Vector3 r;
-
-			APPLY_EQUATION(x);
-			APPLY_EQUATION(y);
-			APPLY_EQUATION(z);
-
-			result = r;
-		} break;
-
-		case Variant::BASIS: {
-			Basis i = initial_val;
-			Basis d = delta_val;
-			Basis r;
-
-			APPLY_EQUATION(elements[0][0]);
-			APPLY_EQUATION(elements[0][1]);
-			APPLY_EQUATION(elements[0][2]);
-			APPLY_EQUATION(elements[1][0]);
-			APPLY_EQUATION(elements[1][1]);
-			APPLY_EQUATION(elements[1][2]);
-			APPLY_EQUATION(elements[2][0]);
-			APPLY_EQUATION(elements[2][1]);
-			APPLY_EQUATION(elements[2][2]);
-
-			result = r;
-		} break;
-
-		case Variant::TRANSFORM2D: {
-			Transform2D i = initial_val;
-			Transform2D d = delta_val;
-			Transform2D r;
-
-			APPLY_EQUATION(elements[0][0]);
-			APPLY_EQUATION(elements[0][1]);
-			APPLY_EQUATION(elements[1][0]);
-			APPLY_EQUATION(elements[1][1]);
-			APPLY_EQUATION(elements[2][0]);
-			APPLY_EQUATION(elements[2][1]);
-
-			result = r;
-		} break;
-		case Variant::QUAT: {
-			Quat i = initial_val;
-			Quat d = delta_val;
-			Quat r;
-
-			APPLY_EQUATION(x);
-			APPLY_EQUATION(y);
-			APPLY_EQUATION(z);
-			APPLY_EQUATION(w);
-
-			result = r;
-		} break;
-		case Variant::AABB: {
-			AABB i = initial_val;
-			AABB d = delta_val;
-			AABB r;
-
-			APPLY_EQUATION(position.x);
-			APPLY_EQUATION(position.y);
-			APPLY_EQUATION(position.z);
-			APPLY_EQUATION(size.x);
-			APPLY_EQUATION(size.y);
-			APPLY_EQUATION(size.z);
-
-			result = r;
-		} break;
-		case Variant::TRANSFORM: {
-			Transform i = initial_val;
-			Transform d = delta_val;
-			Transform r;
-
-			APPLY_EQUATION(basis.elements[0][0]);
-			APPLY_EQUATION(basis.elements[0][1]);
-			APPLY_EQUATION(basis.elements[0][2]);
-			APPLY_EQUATION(basis.elements[1][0]);
-			APPLY_EQUATION(basis.elements[1][1]);
-			APPLY_EQUATION(basis.elements[1][2]);
-			APPLY_EQUATION(basis.elements[2][0]);
-			APPLY_EQUATION(basis.elements[2][1]);
-			APPLY_EQUATION(basis.elements[2][2]);
-			APPLY_EQUATION(origin.x);
-			APPLY_EQUATION(origin.y);
-			APPLY_EQUATION(origin.z);
-
-			result = r;
-		} break;
-		case Variant::COLOR: {
-			Color i = initial_val;
-			Color d = delta_val;
-			Color r;
-
-			APPLY_EQUATION(r);
-			APPLY_EQUATION(g);
-			APPLY_EQUATION(b);
-			APPLY_EQUATION(a);
-
-			result = r;
-		} break;
-		default: {
-			result = initial_val;
-		} break;
-	};
-#undef APPLY_EQUATION
-
-	return result;
-}
-
-bool Tween::_apply_tween_value(InterpolateData &p_data, Variant &value) {
-
-	Object *object = ObjectDB::get_instance(p_data.id);
-	ERR_FAIL_COND_V(object == NULL, false);
-
-	switch (p_data.type) {
-
-		case INTER_PROPERTY:
-		case FOLLOW_PROPERTY:
-		case TARGETING_PROPERTY: {
-			bool valid = false;
-			object->set_indexed(p_data.key, value, &valid);
-			return valid;
-		}
-
-		case INTER_METHOD:
-		case FOLLOW_METHOD:
-		case TARGETING_METHOD: {
-			Variant::CallError error;
-			if (value.get_type() != Variant::NIL) {
-				Variant *arg[1] = { &value };
-				object->call(p_data.key[0], (const Variant **)arg, 1, error);
-			} else {
-				object->call(p_data.key[0], NULL, 0, error);
-			}
-
-			if (error.error == Variant::CallError::CALL_OK)
-				return true;
-			return false;
-		}
-
-		case INTER_CALLBACK:
-			break;
-	};
-	return true;
-}
-
-void Tween::_tween_process(float p_delta) {
-
-	_process_pending_commands();
-
-	if (speed_scale == 0)
-		return;
-	p_delta *= speed_scale;
-
-	pending_update++;
-	// if repeat and all interpolates was finished then reset all interpolates
-	if (repeat) {
-		bool all_finished = true;
-
-		for (List<InterpolateData>::Element *E = interpolates.front(); E; E = E->next()) {
-
-			InterpolateData &data = E->get();
-
-			if (!data.finish) {
-				all_finished = false;
-				break;
-			}
-		}
-
-		if (all_finished)
-			reset_all();
+	Callable::CallError ce;
+	callback.call(argptr, 1, result, ce);
+	if (ce.error != Callable::CallError::CALL_OK) {
+		ERR_FAIL_V_MSG(false, "Error calling method from MethodTweener: " + Variant::get_call_error_text(this, callback.get_method(), argptr, 1, ce));
 	}
 
-	for (List<InterpolateData>::Element *E = interpolates.front(); E; E = E->next()) {
-
-		InterpolateData &data = E->get();
-		if (!data.active || data.finish)
-			continue;
-
-		Object *object = ObjectDB::get_instance(data.id);
-		if (object == NULL)
-			continue;
-
-		bool prev_delaying = data.elapsed <= data.delay;
-		data.elapsed += p_delta;
-		if (data.elapsed < data.delay)
-			continue;
-		else if (prev_delaying) {
-
-			emit_signal("tween_started", object, NodePath(Vector<StringName>(), data.key, false));
-			_apply_tween_value(data, data.initial_val);
-		}
-
-		if (data.elapsed > (data.delay + data.duration)) {
-
-			data.elapsed = data.delay + data.duration;
-			data.finish = true;
-		}
-
-		switch (data.type) {
-			case INTER_PROPERTY:
-			case INTER_METHOD: {
-				Variant result = _run_equation(data);
-				emit_signal("tween_step", object, NodePath(Vector<StringName>(), data.key, false), data.elapsed, result);
-				_apply_tween_value(data, result);
-				if (data.finish)
-					_apply_tween_value(data, data.final_val);
-			} break;
-
-			case INTER_CALLBACK:
-				if (data.finish) {
-					if (data.call_deferred) {
-
-						switch (data.args) {
-							case 0:
-								object->call_deferred(data.key[0]);
-								break;
-							case 1:
-								object->call_deferred(data.key[0], data.arg[0]);
-								break;
-							case 2:
-								object->call_deferred(data.key[0], data.arg[0], data.arg[1]);
-								break;
-							case 3:
-								object->call_deferred(data.key[0], data.arg[0], data.arg[1], data.arg[2]);
-								break;
-							case 4:
-								object->call_deferred(data.key[0], data.arg[0], data.arg[1], data.arg[2], data.arg[3]);
-								break;
-							case 5:
-								object->call_deferred(data.key[0], data.arg[0], data.arg[1], data.arg[2], data.arg[3], data.arg[4]);
-								break;
-						}
-					} else {
-						Variant::CallError error;
-						Variant *arg[5] = {
-							&data.arg[0],
-							&data.arg[1],
-							&data.arg[2],
-							&data.arg[3],
-							&data.arg[4],
-						};
-						object->call(data.key[0], (const Variant **)arg, data.args, error);
-					}
-				}
-				break;
-			default: {}
-		}
-
-		if (data.finish) {
-			emit_signal("tween_completed", object, NodePath(Vector<StringName>(), data.key, false));
-			// not repeat mode, remove completed action
-			if (!repeat)
-				call_deferred("_remove", object, NodePath(Vector<StringName>(), data.key, false), true);
-		}
-	}
-	pending_update--;
-}
-
-void Tween::set_tween_process_mode(TweenProcessMode p_mode) {
-
-	if (tween_process_mode == p_mode)
-		return;
-
-	bool pr = processing;
-	if (pr)
-		_set_process(false);
-	tween_process_mode = p_mode;
-	if (pr)
-		_set_process(true);
-}
-
-Tween::TweenProcessMode Tween::get_tween_process_mode() const {
-
-	return tween_process_mode;
-}
-
-void Tween::_set_process(bool p_process, bool p_force) {
-
-	if (processing == p_process && !p_force)
-		return;
-
-	switch (tween_process_mode) {
-
-		case TWEEN_PROCESS_PHYSICS: set_physics_process_internal(p_process && active); break;
-		case TWEEN_PROCESS_IDLE: set_process_internal(p_process && active); break;
-	}
-
-	processing = p_process;
-}
-
-bool Tween::is_active() const {
-
-	return active;
-}
-
-void Tween::set_active(bool p_active) {
-
-	if (active == p_active)
-		return;
-
-	active = p_active;
-	_set_process(processing, true);
-}
-
-bool Tween::is_repeat() const {
-
-	return repeat;
-}
-
-void Tween::set_repeat(bool p_repeat) {
-
-	repeat = p_repeat;
-}
-
-void Tween::set_speed_scale(float p_speed) {
-
-	speed_scale = p_speed;
-}
-
-float Tween::get_speed_scale() const {
-
-	return speed_scale;
-}
-
-bool Tween::start() {
-
-	set_active(true);
-	_set_process(true);
-	return true;
-}
-
-bool Tween::reset(Object *p_object, StringName p_key) {
-
-	pending_update++;
-	for (List<InterpolateData>::Element *E = interpolates.front(); E; E = E->next()) {
-
-		InterpolateData &data = E->get();
-		Object *object = ObjectDB::get_instance(data.id);
-		if (object == NULL)
-			continue;
-
-		if (object == p_object && (data.concatenated_key == p_key || p_key == "")) {
-
-			data.elapsed = 0;
-			data.finish = false;
-			if (data.delay == 0)
-				_apply_tween_value(data, data.initial_val);
-		}
-	}
-	pending_update--;
-	return true;
-}
-
-bool Tween::reset_all() {
-
-	pending_update++;
-	for (List<InterpolateData>::Element *E = interpolates.front(); E; E = E->next()) {
-
-		InterpolateData &data = E->get();
-		data.elapsed = 0;
-		data.finish = false;
-		if (data.delay == 0)
-			_apply_tween_value(data, data.initial_val);
-	}
-	pending_update--;
-	return true;
-}
-
-bool Tween::stop(Object *p_object, StringName p_key) {
-
-	pending_update++;
-	for (List<InterpolateData>::Element *E = interpolates.front(); E; E = E->next()) {
-
-		InterpolateData &data = E->get();
-		Object *object = ObjectDB::get_instance(data.id);
-		if (object == NULL)
-			continue;
-		if (object == p_object && (data.concatenated_key == p_key || p_key == ""))
-			data.active = false;
-	}
-	pending_update--;
-	return true;
-}
-
-bool Tween::stop_all() {
-
-	set_active(false);
-	_set_process(false);
-
-	pending_update++;
-	for (List<InterpolateData>::Element *E = interpolates.front(); E; E = E->next()) {
-
-		InterpolateData &data = E->get();
-		data.active = false;
-	}
-	pending_update--;
-	return true;
-}
-
-bool Tween::resume(Object *p_object, StringName p_key) {
-
-	set_active(true);
-	_set_process(true);
-
-	pending_update++;
-	for (List<InterpolateData>::Element *E = interpolates.front(); E; E = E->next()) {
-
-		InterpolateData &data = E->get();
-		Object *object = ObjectDB::get_instance(data.id);
-		if (object == NULL)
-			continue;
-		if (object == p_object && (data.concatenated_key == p_key || p_key == ""))
-			data.active = true;
-	}
-	pending_update--;
-	return true;
-}
-
-bool Tween::resume_all() {
-
-	set_active(true);
-	_set_process(true);
-
-	pending_update++;
-	for (List<InterpolateData>::Element *E = interpolates.front(); E; E = E->next()) {
-
-		InterpolateData &data = E->get();
-		data.active = true;
-	}
-	pending_update--;
-	return true;
-}
-
-bool Tween::remove(Object *p_object, StringName p_key) {
-	_remove(p_object, p_key, false);
-	return true;
-}
-
-void Tween::_remove(Object *p_object, StringName p_key, bool first_only) {
-
-	if (pending_update != 0) {
-		call_deferred("_remove", p_object, p_key, first_only);
-		return;
-	}
-	List<List<InterpolateData>::Element *> for_removal;
-	for (List<InterpolateData>::Element *E = interpolates.front(); E; E = E->next()) {
-
-		InterpolateData &data = E->get();
-		Object *object = ObjectDB::get_instance(data.id);
-		if (object == NULL)
-			continue;
-		if (object == p_object && (data.concatenated_key == p_key || p_key == "")) {
-			for_removal.push_back(E);
-			if (first_only) {
-				break;
-			}
-		}
-	}
-	for (List<List<InterpolateData>::Element *>::Element *E = for_removal.front(); E; E = E->next()) {
-		interpolates.erase(E->get());
-	}
-}
-
-bool Tween::remove_all() {
-
-	if (pending_update != 0) {
-		call_deferred("remove_all");
+	if (time < duration) {
+		r_delta = 0;
 		return true;
-	}
-	set_active(false);
-	_set_process(false);
-	interpolates.clear();
-	return true;
-}
-
-bool Tween::seek(real_t p_time) {
-
-	pending_update++;
-	for (List<InterpolateData>::Element *E = interpolates.front(); E; E = E->next()) {
-
-		InterpolateData &data = E->get();
-
-		data.elapsed = p_time;
-		if (data.elapsed < data.delay) {
-
-			data.finish = false;
-			continue;
-		} else if (data.elapsed >= (data.delay + data.duration)) {
-
-			data.finish = true;
-			data.elapsed = (data.delay + data.duration);
-		} else {
-			data.finish = false;
-		}
-
-		switch (data.type) {
-			case INTER_PROPERTY:
-			case INTER_METHOD:
-				break;
-			case INTER_CALLBACK:
-				continue;
-		}
-
-		Variant result = _run_equation(data);
-
-		_apply_tween_value(data, result);
-	}
-	pending_update--;
-	return true;
-}
-
-real_t Tween::tell() const {
-
-	pending_update++;
-	real_t pos = 0;
-	for (const List<InterpolateData>::Element *E = interpolates.front(); E; E = E->next()) {
-
-		const InterpolateData &data = E->get();
-		if (data.elapsed > pos)
-			pos = data.elapsed;
-	}
-	pending_update--;
-	return pos;
-}
-
-real_t Tween::get_runtime() const {
-
-	pending_update++;
-	real_t runtime = 0;
-	for (const List<InterpolateData>::Element *E = interpolates.front(); E; E = E->next()) {
-
-		const InterpolateData &data = E->get();
-		real_t t = data.delay + data.duration;
-		if (t > runtime)
-			runtime = t;
-	}
-	pending_update--;
-	return runtime;
-}
-
-bool Tween::_calc_delta_val(const Variant &p_initial_val, const Variant &p_final_val, Variant &p_delta_val) {
-
-	const Variant &initial_val = p_initial_val;
-	const Variant &final_val = p_final_val;
-	Variant &delta_val = p_delta_val;
-
-	switch (initial_val.get_type()) {
-
-		case Variant::BOOL:
-			//delta_val = p_final_val;
-			delta_val = (int)p_final_val - (int)p_initial_val;
-			break;
-
-		case Variant::INT:
-			delta_val = (int)final_val - (int)initial_val;
-			break;
-
-		case Variant::REAL:
-			delta_val = (real_t)final_val - (real_t)initial_val;
-			break;
-
-		case Variant::VECTOR2:
-			delta_val = final_val.operator Vector2() - initial_val.operator Vector2();
-			break;
-
-		case Variant::VECTOR3:
-			delta_val = final_val.operator Vector3() - initial_val.operator Vector3();
-			break;
-
-		case Variant::BASIS: {
-			Basis i = initial_val;
-			Basis f = final_val;
-			delta_val = Basis(f.elements[0][0] - i.elements[0][0],
-					f.elements[0][1] - i.elements[0][1],
-					f.elements[0][2] - i.elements[0][2],
-					f.elements[1][0] - i.elements[1][0],
-					f.elements[1][1] - i.elements[1][1],
-					f.elements[1][2] - i.elements[1][2],
-					f.elements[2][0] - i.elements[2][0],
-					f.elements[2][1] - i.elements[2][1],
-					f.elements[2][2] - i.elements[2][2]);
-		} break;
-
-		case Variant::TRANSFORM2D: {
-			Transform2D i = initial_val;
-			Transform2D f = final_val;
-			Transform2D d = Transform2D();
-			d[0][0] = f.elements[0][0] - i.elements[0][0];
-			d[0][1] = f.elements[0][1] - i.elements[0][1];
-			d[1][0] = f.elements[1][0] - i.elements[1][0];
-			d[1][1] = f.elements[1][1] - i.elements[1][1];
-			d[2][0] = f.elements[2][0] - i.elements[2][0];
-			d[2][1] = f.elements[2][1] - i.elements[2][1];
-			delta_val = d;
-		} break;
-		case Variant::QUAT:
-			delta_val = final_val.operator Quat() - initial_val.operator Quat();
-			break;
-		case Variant::AABB: {
-			AABB i = initial_val;
-			AABB f = final_val;
-			delta_val = AABB(f.position - i.position, f.size - i.size);
-		} break;
-		case Variant::TRANSFORM: {
-			Transform i = initial_val;
-			Transform f = final_val;
-			Transform d;
-			d.set(f.basis.elements[0][0] - i.basis.elements[0][0],
-					f.basis.elements[0][1] - i.basis.elements[0][1],
-					f.basis.elements[0][2] - i.basis.elements[0][2],
-					f.basis.elements[1][0] - i.basis.elements[1][0],
-					f.basis.elements[1][1] - i.basis.elements[1][1],
-					f.basis.elements[1][2] - i.basis.elements[1][2],
-					f.basis.elements[2][0] - i.basis.elements[2][0],
-					f.basis.elements[2][1] - i.basis.elements[2][1],
-					f.basis.elements[2][2] - i.basis.elements[2][2],
-					f.origin.x - i.origin.x,
-					f.origin.y - i.origin.y,
-					f.origin.z - i.origin.z);
-
-			delta_val = d;
-		} break;
-		case Variant::COLOR: {
-			Color i = initial_val;
-			Color f = final_val;
-			delta_val = Color(f.r - i.r, f.g - i.g, f.b - i.b, f.a - i.a);
-		} break;
-
-		default:
-			ERR_PRINT("Invalid param type, except(int/real/vector2/vector/matrix/matrix32/quat/aabb/transform/color)");
-			return false;
-	};
-	return true;
-}
-
-bool Tween::interpolate_property(Object *p_object, NodePath p_property, Variant p_initial_val, Variant p_final_val, real_t p_duration, TransitionType p_trans_type, EaseType p_ease_type, real_t p_delay) {
-	if (pending_update != 0) {
-		_add_pending_command("interpolate_property", p_object, p_property, p_initial_val, p_final_val, p_duration, p_trans_type, p_ease_type, p_delay);
-		return true;
-	}
-	p_property = p_property.get_as_property_path();
-
-	if (p_initial_val.get_type() == Variant::NIL) p_initial_val = p_object->get_indexed(p_property.get_subnames());
-
-	// convert INT to REAL is better for interpolaters
-	if (p_initial_val.get_type() == Variant::INT) p_initial_val = p_initial_val.operator real_t();
-	if (p_final_val.get_type() == Variant::INT) p_final_val = p_final_val.operator real_t();
-
-	ERR_FAIL_COND_V(p_object == NULL, false);
-	ERR_FAIL_COND_V(!ObjectDB::instance_validate(p_object), false);
-	ERR_FAIL_COND_V(p_initial_val.get_type() != p_final_val.get_type(), false);
-	ERR_FAIL_COND_V(p_duration <= 0, false);
-	ERR_FAIL_COND_V(p_trans_type < 0 || p_trans_type >= TRANS_COUNT, false);
-	ERR_FAIL_COND_V(p_ease_type < 0 || p_ease_type >= EASE_COUNT, false);
-	ERR_FAIL_COND_V(p_delay < 0, false);
-
-	bool prop_valid = false;
-	p_object->get_indexed(p_property.get_subnames(), &prop_valid);
-	ERR_FAIL_COND_V(!prop_valid, false);
-
-	InterpolateData data;
-	data.active = true;
-	data.type = INTER_PROPERTY;
-	data.finish = false;
-	data.elapsed = 0;
-
-	data.id = p_object->get_instance_id();
-	data.key = p_property.get_subnames();
-	data.concatenated_key = p_property.get_concatenated_subnames();
-	data.initial_val = p_initial_val;
-	data.final_val = p_final_val;
-	data.duration = p_duration;
-	data.trans_type = p_trans_type;
-	data.ease_type = p_ease_type;
-	data.delay = p_delay;
-
-	if (!_calc_delta_val(data.initial_val, data.final_val, data.delta_val))
+	} else {
+		finished = true;
+		r_delta = elapsed_time - delay - duration;
+		emit_signal("finished");
 		return false;
-
-	interpolates.push_back(data);
-	return true;
-}
-
-bool Tween::interpolate_method(Object *p_object, StringName p_method, Variant p_initial_val, Variant p_final_val, real_t p_duration, TransitionType p_trans_type, EaseType p_ease_type, real_t p_delay) {
-	if (pending_update != 0) {
-		_add_pending_command("interpolate_method", p_object, p_method, p_initial_val, p_final_val, p_duration, p_trans_type, p_ease_type, p_delay);
-		return true;
 	}
-	// convert INT to REAL is better for interpolaters
-	if (p_initial_val.get_type() == Variant::INT) p_initial_val = p_initial_val.operator real_t();
-	if (p_final_val.get_type() == Variant::INT) p_final_val = p_final_val.operator real_t();
-
-	ERR_FAIL_COND_V(p_object == NULL, false);
-	ERR_FAIL_COND_V(!ObjectDB::instance_validate(p_object), false);
-	ERR_FAIL_COND_V(p_initial_val.get_type() != p_final_val.get_type(), false);
-	ERR_FAIL_COND_V(p_duration <= 0, false);
-	ERR_FAIL_COND_V(p_trans_type < 0 || p_trans_type >= TRANS_COUNT, false);
-	ERR_FAIL_COND_V(p_ease_type < 0 || p_ease_type >= EASE_COUNT, false);
-	ERR_FAIL_COND_V(p_delay < 0, false);
-
-	ERR_EXPLAIN("Object has no method named: %s" + p_method);
-	ERR_FAIL_COND_V(!p_object->has_method(p_method), false);
-
-	InterpolateData data;
-	data.active = true;
-	data.type = INTER_METHOD;
-	data.finish = false;
-	data.elapsed = 0;
-
-	data.id = p_object->get_instance_id();
-	data.key.push_back(p_method);
-	data.concatenated_key = p_method;
-	data.initial_val = p_initial_val;
-	data.final_val = p_final_val;
-	data.duration = p_duration;
-	data.trans_type = p_trans_type;
-	data.ease_type = p_ease_type;
-	data.delay = p_delay;
-
-	if (!_calc_delta_val(data.initial_val, data.final_val, data.delta_val))
-		return false;
-
-	interpolates.push_back(data);
-	return true;
 }
 
-bool Tween::interpolate_callback(Object *p_object, real_t p_duration, String p_callback, VARIANT_ARG_DECLARE) {
-
-	if (pending_update != 0) {
-		_add_pending_command("interpolate_callback", p_object, p_duration, p_callback, p_arg1, p_arg2, p_arg3, p_arg4, p_arg5);
-		return true;
+void MethodTweener::set_tween(Ref<Tween> p_tween) {
+	tween = p_tween;
+	if (trans_type == Tween::TRANS_MAX) {
+		trans_type = tween->get_trans();
 	}
-
-	ERR_FAIL_COND_V(p_object == NULL, false);
-	ERR_FAIL_COND_V(!ObjectDB::instance_validate(p_object), false);
-	ERR_FAIL_COND_V(p_duration < 0, false);
-
-	ERR_EXPLAIN("Object has no callback named: %s" + p_callback);
-	ERR_FAIL_COND_V(!p_object->has_method(p_callback), false);
-
-	InterpolateData data;
-	data.active = true;
-	data.type = INTER_CALLBACK;
-	data.finish = false;
-	data.call_deferred = false;
-	data.elapsed = 0;
-
-	data.id = p_object->get_instance_id();
-	data.key.push_back(p_callback);
-	data.concatenated_key = p_callback;
-	data.duration = p_duration;
-	data.delay = 0;
-
-	int args = 0;
-	if (p_arg5.get_type() != Variant::NIL)
-		args = 5;
-	else if (p_arg4.get_type() != Variant::NIL)
-		args = 4;
-	else if (p_arg3.get_type() != Variant::NIL)
-		args = 3;
-	else if (p_arg2.get_type() != Variant::NIL)
-		args = 2;
-	else if (p_arg1.get_type() != Variant::NIL)
-		args = 1;
-	else
-		args = 0;
-
-	data.args = args;
-	data.arg[0] = p_arg1;
-	data.arg[1] = p_arg2;
-	data.arg[2] = p_arg3;
-	data.arg[3] = p_arg4;
-	data.arg[4] = p_arg5;
-
-	pending_update++;
-	interpolates.push_back(data);
-	pending_update--;
-	return true;
-}
-
-bool Tween::interpolate_deferred_callback(Object *p_object, real_t p_duration, String p_callback, VARIANT_ARG_DECLARE) {
-
-	if (pending_update != 0) {
-		_add_pending_command("interpolate_deferred_callback", p_object, p_duration, p_callback, p_arg1, p_arg2, p_arg3, p_arg4, p_arg5);
-		return true;
+	if (ease_type == Tween::EASE_MAX) {
+		ease_type = tween->get_ease();
 	}
-	ERR_FAIL_COND_V(p_object == NULL, false);
-	ERR_FAIL_COND_V(!ObjectDB::instance_validate(p_object), false);
-	ERR_FAIL_COND_V(p_duration < 0, false);
-
-	ERR_EXPLAIN("Object has no callback named: %s" + p_callback);
-	ERR_FAIL_COND_V(!p_object->has_method(p_callback), false);
-
-	InterpolateData data;
-	data.active = true;
-	data.type = INTER_CALLBACK;
-	data.finish = false;
-	data.call_deferred = true;
-	data.elapsed = 0;
-
-	data.id = p_object->get_instance_id();
-	data.key.push_back(p_callback);
-	data.concatenated_key = p_callback;
-	data.duration = p_duration;
-	data.delay = 0;
-
-	int args = 0;
-	if (p_arg5.get_type() != Variant::NIL)
-		args = 5;
-	else if (p_arg4.get_type() != Variant::NIL)
-		args = 4;
-	else if (p_arg3.get_type() != Variant::NIL)
-		args = 3;
-	else if (p_arg2.get_type() != Variant::NIL)
-		args = 2;
-	else if (p_arg1.get_type() != Variant::NIL)
-		args = 1;
-	else
-		args = 0;
-
-	data.args = args;
-	data.arg[0] = p_arg1;
-	data.arg[1] = p_arg2;
-	data.arg[2] = p_arg3;
-	data.arg[3] = p_arg4;
-	data.arg[4] = p_arg5;
-
-	pending_update++;
-	interpolates.push_back(data);
-	pending_update--;
-	return true;
 }
 
-bool Tween::follow_property(Object *p_object, NodePath p_property, Variant p_initial_val, Object *p_target, NodePath p_target_property, real_t p_duration, TransitionType p_trans_type, EaseType p_ease_type, real_t p_delay) {
-	if (pending_update != 0) {
-		_add_pending_command("follow_property", p_object, p_property, p_initial_val, p_target, p_target_property, p_duration, p_trans_type, p_ease_type, p_delay);
-		return true;
-	}
-	p_property = p_property.get_as_property_path();
-	p_target_property = p_target_property.get_as_property_path();
-
-	if (p_initial_val.get_type() == Variant::NIL) p_initial_val = p_object->get_indexed(p_property.get_subnames());
-
-	// convert INT to REAL is better for interpolaters
-	if (p_initial_val.get_type() == Variant::INT) p_initial_val = p_initial_val.operator real_t();
-
-	ERR_FAIL_COND_V(p_object == NULL, false);
-	ERR_FAIL_COND_V(!ObjectDB::instance_validate(p_object), false);
-	ERR_FAIL_COND_V(p_target == NULL, false);
-	ERR_FAIL_COND_V(!ObjectDB::instance_validate(p_target), false);
-	ERR_FAIL_COND_V(p_duration <= 0, false);
-	ERR_FAIL_COND_V(p_trans_type < 0 || p_trans_type >= TRANS_COUNT, false);
-	ERR_FAIL_COND_V(p_ease_type < 0 || p_ease_type >= EASE_COUNT, false);
-	ERR_FAIL_COND_V(p_delay < 0, false);
-
-	bool prop_valid = false;
-	p_object->get_indexed(p_property.get_subnames(), &prop_valid);
-	ERR_FAIL_COND_V(!prop_valid, false);
-
-	bool target_prop_valid = false;
-	Variant target_val = p_target->get_indexed(p_target_property.get_subnames(), &target_prop_valid);
-	ERR_FAIL_COND_V(!target_prop_valid, false);
-
-	// convert INT to REAL is better for interpolaters
-	if (target_val.get_type() == Variant::INT) target_val = target_val.operator real_t();
-	ERR_FAIL_COND_V(target_val.get_type() != p_initial_val.get_type(), false);
-
-	InterpolateData data;
-	data.active = true;
-	data.type = FOLLOW_PROPERTY;
-	data.finish = false;
-	data.elapsed = 0;
-
-	data.id = p_object->get_instance_id();
-	data.key = p_property.get_subnames();
-	data.concatenated_key = p_property.get_concatenated_subnames();
-	data.initial_val = p_initial_val;
-	data.target_id = p_target->get_instance_id();
-	data.target_key = p_target_property.get_subnames();
-	data.duration = p_duration;
-	data.trans_type = p_trans_type;
-	data.ease_type = p_ease_type;
-	data.delay = p_delay;
-
-	interpolates.push_back(data);
-	return true;
+void MethodTweener::_bind_methods() {
+	ClassDB::bind_method(D_METHOD("set_delay", "delay"), &MethodTweener::set_delay);
+	ClassDB::bind_method(D_METHOD("set_trans", "trans"), &MethodTweener::set_trans);
+	ClassDB::bind_method(D_METHOD("set_ease", "ease"), &MethodTweener::set_ease);
 }
 
-bool Tween::follow_method(Object *p_object, StringName p_method, Variant p_initial_val, Object *p_target, StringName p_target_method, real_t p_duration, TransitionType p_trans_type, EaseType p_ease_type, real_t p_delay) {
-	if (pending_update != 0) {
-		_add_pending_command("follow_method", p_object, p_method, p_initial_val, p_target, p_target_method, p_duration, p_trans_type, p_ease_type, p_delay);
-		return true;
-	}
-	// convert INT to REAL is better for interpolaters
-	if (p_initial_val.get_type() == Variant::INT) p_initial_val = p_initial_val.operator real_t();
-
-	ERR_FAIL_COND_V(p_object == NULL, false);
-	ERR_FAIL_COND_V(!ObjectDB::instance_validate(p_object), false);
-	ERR_FAIL_COND_V(p_target == NULL, false);
-	ERR_FAIL_COND_V(!ObjectDB::instance_validate(p_target), false);
-	ERR_FAIL_COND_V(p_duration <= 0, false);
-	ERR_FAIL_COND_V(p_trans_type < 0 || p_trans_type >= TRANS_COUNT, false);
-	ERR_FAIL_COND_V(p_ease_type < 0 || p_ease_type >= EASE_COUNT, false);
-	ERR_FAIL_COND_V(p_delay < 0, false);
-
-	ERR_EXPLAIN("Object has no method named: %s" + p_method);
-	ERR_FAIL_COND_V(!p_object->has_method(p_method), false);
-	ERR_EXPLAIN("Target has no method named: %s" + p_target_method);
-	ERR_FAIL_COND_V(!p_target->has_method(p_target_method), false);
-
-	Variant::CallError error;
-	Variant target_val = p_target->call(p_target_method, NULL, 0, error);
-	ERR_FAIL_COND_V(error.error != Variant::CallError::CALL_OK, false);
-
-	// convert INT to REAL is better for interpolaters
-	if (target_val.get_type() == Variant::INT) target_val = target_val.operator real_t();
-	ERR_FAIL_COND_V(target_val.get_type() != p_initial_val.get_type(), false);
-
-	InterpolateData data;
-	data.active = true;
-	data.type = FOLLOW_METHOD;
-	data.finish = false;
-	data.elapsed = 0;
-
-	data.id = p_object->get_instance_id();
-	data.key.push_back(p_method);
-	data.concatenated_key = p_method;
-	data.initial_val = p_initial_val;
-	data.target_id = p_target->get_instance_id();
-	data.target_key.push_back(p_target_method);
-	data.duration = p_duration;
-	data.trans_type = p_trans_type;
-	data.ease_type = p_ease_type;
-	data.delay = p_delay;
-
-	interpolates.push_back(data);
-	return true;
+MethodTweener::MethodTweener(Callable p_callback, float p_from, float p_to, float p_duration) {
+	callback = p_callback;
+	initial_val = p_from;
+	delta_val = tween->calculate_delta_value(p_from, p_to);
+	duration = p_duration;
 }
 
-bool Tween::targeting_property(Object *p_object, NodePath p_property, Object *p_initial, NodePath p_initial_property, Variant p_final_val, real_t p_duration, TransitionType p_trans_type, EaseType p_ease_type, real_t p_delay) {
-
-	if (pending_update != 0) {
-		_add_pending_command("targeting_property", p_object, p_property, p_initial, p_initial_property, p_final_val, p_duration, p_trans_type, p_ease_type, p_delay);
-		return true;
-	}
-	p_property = p_property.get_as_property_path();
-	p_initial_property = p_initial_property.get_as_property_path();
-
-	// convert INT to REAL is better for interpolaters
-	if (p_final_val.get_type() == Variant::INT) p_final_val = p_final_val.operator real_t();
-
-	ERR_FAIL_COND_V(p_object == NULL, false);
-	ERR_FAIL_COND_V(!ObjectDB::instance_validate(p_object), false);
-	ERR_FAIL_COND_V(p_initial == NULL, false);
-	ERR_FAIL_COND_V(!ObjectDB::instance_validate(p_initial), false);
-	ERR_FAIL_COND_V(p_duration <= 0, false);
-	ERR_FAIL_COND_V(p_trans_type < 0 || p_trans_type >= TRANS_COUNT, false);
-	ERR_FAIL_COND_V(p_ease_type < 0 || p_ease_type >= EASE_COUNT, false);
-	ERR_FAIL_COND_V(p_delay < 0, false);
-
-	bool prop_valid = false;
-	p_object->get_indexed(p_property.get_subnames(), &prop_valid);
-	ERR_FAIL_COND_V(!prop_valid, false);
-
-	bool initial_prop_valid = false;
-	Variant initial_val = p_initial->get_indexed(p_initial_property.get_subnames(), &initial_prop_valid);
-	ERR_FAIL_COND_V(!initial_prop_valid, false);
-
-	// convert INT to REAL is better for interpolaters
-	if (initial_val.get_type() == Variant::INT) initial_val = initial_val.operator real_t();
-	ERR_FAIL_COND_V(initial_val.get_type() != p_final_val.get_type(), false);
-
-	InterpolateData data;
-	data.active = true;
-	data.type = TARGETING_PROPERTY;
-	data.finish = false;
-	data.elapsed = 0;
-
-	data.id = p_object->get_instance_id();
-	data.key = p_property.get_subnames();
-	data.concatenated_key = p_property.get_concatenated_subnames();
-	data.target_id = p_initial->get_instance_id();
-	data.target_key = p_initial_property.get_subnames();
-	data.initial_val = initial_val;
-	data.final_val = p_final_val;
-	data.duration = p_duration;
-	data.trans_type = p_trans_type;
-	data.ease_type = p_ease_type;
-	data.delay = p_delay;
-
-	if (!_calc_delta_val(data.initial_val, data.final_val, data.delta_val))
-		return false;
-
-	interpolates.push_back(data);
-	return true;
-}
-
-bool Tween::targeting_method(Object *p_object, StringName p_method, Object *p_initial, StringName p_initial_method, Variant p_final_val, real_t p_duration, TransitionType p_trans_type, EaseType p_ease_type, real_t p_delay) {
-	if (pending_update != 0) {
-		_add_pending_command("targeting_method", p_object, p_method, p_initial, p_initial_method, p_final_val, p_duration, p_trans_type, p_ease_type, p_delay);
-		return true;
-	}
-	// convert INT to REAL is better for interpolaters
-	if (p_final_val.get_type() == Variant::INT) p_final_val = p_final_val.operator real_t();
-
-	ERR_FAIL_COND_V(p_object == NULL, false);
-	ERR_FAIL_COND_V(!ObjectDB::instance_validate(p_object), false);
-	ERR_FAIL_COND_V(p_initial == NULL, false);
-	ERR_FAIL_COND_V(!ObjectDB::instance_validate(p_initial), false);
-	ERR_FAIL_COND_V(p_duration <= 0, false);
-	ERR_FAIL_COND_V(p_trans_type < 0 || p_trans_type >= TRANS_COUNT, false);
-	ERR_FAIL_COND_V(p_ease_type < 0 || p_ease_type >= EASE_COUNT, false);
-	ERR_FAIL_COND_V(p_delay < 0, false);
-
-	ERR_EXPLAIN("Object has no method named: %s" + p_method);
-	ERR_FAIL_COND_V(!p_object->has_method(p_method), false);
-	ERR_EXPLAIN("Initial Object has no method named: %s" + p_initial_method);
-	ERR_FAIL_COND_V(!p_initial->has_method(p_initial_method), false);
-
-	Variant::CallError error;
-	Variant initial_val = p_initial->call(p_initial_method, NULL, 0, error);
-	ERR_FAIL_COND_V(error.error != Variant::CallError::CALL_OK, false);
-
-	// convert INT to REAL is better for interpolaters
-	if (initial_val.get_type() == Variant::INT) initial_val = initial_val.operator real_t();
-	ERR_FAIL_COND_V(initial_val.get_type() != p_final_val.get_type(), false);
-
-	InterpolateData data;
-	data.active = true;
-	data.type = TARGETING_METHOD;
-	data.finish = false;
-	data.elapsed = 0;
-
-	data.id = p_object->get_instance_id();
-	data.key.push_back(p_method);
-	data.concatenated_key = p_method;
-	data.target_id = p_initial->get_instance_id();
-	data.target_key.push_back(p_initial_method);
-	data.initial_val = initial_val;
-	data.final_val = p_final_val;
-	data.duration = p_duration;
-	data.trans_type = p_trans_type;
-	data.ease_type = p_ease_type;
-	data.delay = p_delay;
-
-	if (!_calc_delta_val(data.initial_val, data.final_val, data.delta_val))
-		return false;
-
-	interpolates.push_back(data);
-	return true;
-}
-
-Tween::Tween() {
-
-	//String autoplay;
-	tween_process_mode = TWEEN_PROCESS_IDLE;
-	processing = false;
-	active = false;
-	repeat = false;
-	speed_scale = 1;
-	pending_update = 0;
-}
-
-Tween::~Tween() {
+MethodTweener::MethodTweener() {
+	ERR_FAIL_MSG("Can't create empty MethodTweener. Use get_tree().tween_method() instead.");
 }

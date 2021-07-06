@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,20 +27,26 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef CONFIG_FILE_H
 #define CONFIG_FILE_H
 
-#include "core/ordered_hash_map.h"
-#include "reference.h"
+#include "core/io/file_access.h"
+#include "core/object/ref_counted.h"
+#include "core/templates/ordered_hash_map.h"
+#include "core/variant/variant_parser.h"
 
-class ConfigFile : public Reference {
+class ConfigFile : public RefCounted {
+	GDCLASS(ConfigFile, RefCounted);
 
-	GDCLASS(ConfigFile, Reference);
+	OrderedHashMap<String, OrderedHashMap<String, Variant>> values;
 
-	OrderedHashMap<String, OrderedHashMap<String, Variant> > values;
+	PackedStringArray _get_sections() const;
+	PackedStringArray _get_section_keys(const String &p_section) const;
+	Error _internal_load(const String &p_path, FileAccess *f);
+	Error _internal_save(FileAccess *file);
 
-	PoolStringArray _get_sections() const;
-	PoolStringArray _get_section_keys(const String &p_section) const;
+	Error _parse(const String &p_path, VariantParser::Stream *p_stream);
 
 protected:
 	static void _bind_methods();
@@ -56,11 +62,19 @@ public:
 	void get_section_keys(const String &p_section, List<String> *r_keys) const;
 
 	void erase_section(const String &p_section);
+	void erase_section_key(const String &p_section, const String &p_key);
 
 	Error save(const String &p_path);
 	Error load(const String &p_path);
+	Error parse(const String &p_data);
 
-	ConfigFile();
+	void clear();
+
+	Error load_encrypted(const String &p_path, const Vector<uint8_t> &p_key);
+	Error load_encrypted_pass(const String &p_path, const String &p_pass);
+
+	Error save_encrypted(const String &p_path, const Vector<uint8_t> &p_key);
+	Error save_encrypted_pass(const String &p_path, const String &p_pass);
 };
 
 #endif // CONFIG_FILE_H

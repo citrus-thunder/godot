@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,23 +27,26 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef AUDIOEFFECT_H
 #define AUDIOEFFECT_H
 
-#include "audio_frame.h"
-#include "resource.h"
+#include "core/io/resource.h"
+#include "core/math/audio_frame.h"
 
-class AudioEffectInstance : public Reference {
-	GDCLASS(AudioEffectInstance, Reference)
+class AudioEffectInstance : public RefCounted {
+	GDCLASS(AudioEffectInstance, RefCounted);
 
 public:
 	virtual void process(const AudioFrame *p_src_frames, AudioFrame *p_dst_frames, int p_frame_count) = 0;
+	virtual bool process_silence() const { return false; }
 };
 
 class AudioEffect : public Resource {
-	GDCLASS(AudioEffect, Resource)
+	GDCLASS(AudioEffect, Resource);
+
 public:
-	virtual Ref<AudioEffectInstance> instance() = 0;
+	virtual Ref<AudioEffectInstance> instantiate() = 0;
 	AudioEffect();
 };
 

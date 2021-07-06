@@ -1,13 +1,12 @@
 /*************************************************************************/
 /*  register_types.cpp                                                   */
-/*  Author: AndreaCatania                                                */
 /*************************************************************************/
 /*                       This file is part of:                           */
 /*                           GODOT ENGINE                                */
-/*                    http://www.godotengine.org                         */
+/*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -30,17 +29,29 @@
 /*************************************************************************/
 
 #include "register_types.h"
-#include "bullet_physics_server.h"
-#include "class_db.h"
 
-PhysicsServer *_createBulletPhysicsCallback() {
-	return memnew(BulletPhysicsServer);
+#include "bullet_physics_server.h"
+#include "core/config/project_settings.h"
+#include "core/object/class_db.h"
+
+/**
+	@author AndreaCatania
+*/
+
+#ifndef _3D_DISABLED
+PhysicsServer3D *_createBulletPhysicsCallback() {
+	return memnew(BulletPhysicsServer3D);
 }
+#endif
 
 void register_bullet_types() {
+#ifndef _3D_DISABLED
+	PhysicsServer3DManager::register_server("Bullet", &_createBulletPhysicsCallback);
+	PhysicsServer3DManager::set_default_server("Bullet", 1);
 
-	PhysicsServerManager::register_server("Bullet", &_createBulletPhysicsCallback);
-	PhysicsServerManager::set_default_server("Bullet", 1);
+	GLOBAL_DEF("physics/3d/active_soft_world", true);
+	ProjectSettings::get_singleton()->set_custom_property_info("physics/3d/active_soft_world", PropertyInfo(Variant::BOOL, "physics/3d/active_soft_world"));
+#endif
 }
 
 void unregister_bullet_types() {

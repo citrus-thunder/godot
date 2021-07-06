@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef CONCAVE_POLYGON_SHAPE_2D_H
 #define CONCAVE_POLYGON_SHAPE_2D_H
 
@@ -39,11 +40,14 @@ protected:
 	static void _bind_methods();
 
 public:
-	void set_segments(const PoolVector<Vector2> &p_segments);
-	PoolVector<Vector2> get_segments() const;
+	virtual bool _edit_is_selected_on_click(const Point2 &p_point, double p_tolerance) const override;
 
-	virtual void draw(const RID &p_to_rid, const Color &p_color);
-	virtual Rect2 get_rect() const;
+	void set_segments(const Vector<Vector2> &p_segments);
+	Vector<Vector2> get_segments() const;
+
+	virtual void draw(const RID &p_to_rid, const Color &p_color) override;
+	virtual Rect2 get_rect() const override;
+	virtual real_t get_enclosing_radius() const override;
 
 	ConcavePolygonShape2D();
 };

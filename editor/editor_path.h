@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,34 +27,41 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef EDITOR_PATH_H
 #define EDITOR_PATH_H
 
 #include "editor_data.h"
-#include "scene/gui/control.h"
+#include "scene/gui/box_container.h"
+#include "scene/gui/button.h"
 #include "scene/gui/popup_menu.h"
 
-class EditorPath : public Control {
-
-	GDCLASS(EditorPath, Control);
+class EditorPath : public Button {
+	GDCLASS(EditorPath, Button);
 
 	EditorHistory *history;
 
+	TextureRect *current_object_icon;
+	Label *current_object_label;
+	TextureRect *sub_objects_icon;
+	PopupMenu *sub_objects_menu;
+
 	Vector<ObjectID> objects;
-	PopupMenu *popup;
-	bool mouse_over;
 	EditorPath();
 
-	void _popup_select(int p_idx);
-	void _gui_input(const Ref<InputEvent> &p_event);
+	void _show_popup();
+	void _id_pressed(int p_idx);
+	void _about_to_show();
 	void _add_children_to_popup(Object *p_obj, int p_depth = 0);
 
 protected:
-	static void _bind_methods();
 	void _notification(int p_what);
+	static void _bind_methods();
 
 public:
 	void update_path();
+	void clear_path();
+	void enable_path();
 
 	EditorPath(EditorHistory *p_history);
 };

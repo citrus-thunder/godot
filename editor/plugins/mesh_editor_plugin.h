@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,29 +27,30 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef MESH_EDITOR_PLUGIN_H
 #define MESH_EDITOR_PLUGIN_H
 
 #include "editor/editor_node.h"
 #include "editor/editor_plugin.h"
-#include "scene/3d/camera.h"
-#include "scene/3d/light.h"
-#include "scene/3d/mesh_instance.h"
+#include "scene/3d/camera_3d.h"
+#include "scene/3d/light_3d.h"
+#include "scene/3d/mesh_instance_3d.h"
+#include "scene/gui/subviewport_container.h"
 #include "scene/resources/material.h"
 
-class MeshEditor : public ViewportContainer {
-
-	GDCLASS(MeshEditor, ViewportContainer);
+class MeshEditor : public SubViewportContainer {
+	GDCLASS(MeshEditor, SubViewportContainer);
 
 	float rot_x;
 	float rot_y;
 
-	Viewport *viewport;
-	MeshInstance *mesh_instance;
-	Spatial *rotation;
-	DirectionalLight *light1;
-	DirectionalLight *light2;
-	Camera *camera;
+	SubViewport *viewport;
+	MeshInstance3D *mesh_instance;
+	Node3D *rotation;
+	DirectionalLight3D *light1;
+	DirectionalLight3D *light2;
+	Camera3D *camera;
 
 	Ref<Mesh> mesh;
 
@@ -71,22 +72,21 @@ public:
 	MeshEditor();
 };
 
-class MeshEditorPlugin : public EditorPlugin {
-
-	GDCLASS(MeshEditorPlugin, EditorPlugin);
-
-	MeshEditor *mesh_editor;
-	EditorNode *editor;
+class EditorInspectorPluginMesh : public EditorInspectorPlugin {
+	GDCLASS(EditorInspectorPluginMesh, EditorInspectorPlugin);
 
 public:
-	virtual String get_name() const { return "Mesh"; }
-	bool has_main_screen() const { return false; }
-	virtual void edit(Object *p_object);
-	virtual bool handles(Object *p_object) const;
-	virtual void make_visible(bool p_visible);
+	virtual bool can_handle(Object *p_object) override;
+	virtual void parse_begin(Object *p_object) override;
+};
+
+class MeshEditorPlugin : public EditorPlugin {
+	GDCLASS(MeshEditorPlugin, EditorPlugin);
+
+public:
+	virtual String get_name() const override { return "Mesh"; }
 
 	MeshEditorPlugin(EditorNode *p_node);
-	~MeshEditorPlugin();
 };
 
 #endif

@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef AUDIOEFFECTAMPLIFY_H
 #define AUDIOEFFECTAMPLIFY_H
 
@@ -35,18 +36,18 @@
 class AudioEffectAmplify;
 
 class AudioEffectAmplifyInstance : public AudioEffectInstance {
-	GDCLASS(AudioEffectAmplifyInstance, AudioEffectInstance)
+	GDCLASS(AudioEffectAmplifyInstance, AudioEffectInstance);
 	friend class AudioEffectAmplify;
 	Ref<AudioEffectAmplify> base;
 
 	float mix_volume_db;
 
 public:
-	virtual void process(const AudioFrame *p_src_frames, AudioFrame *p_dst_frames, int p_frame_count);
+	virtual void process(const AudioFrame *p_src_frames, AudioFrame *p_dst_frames, int p_frame_count) override;
 };
 
 class AudioEffectAmplify : public AudioEffect {
-	GDCLASS(AudioEffectAmplify, AudioEffect)
+	GDCLASS(AudioEffectAmplify, AudioEffect);
 
 	friend class AudioEffectAmplifyInstance;
 	float volume_db;
@@ -55,7 +56,7 @@ protected:
 	static void _bind_methods();
 
 public:
-	Ref<AudioEffectInstance> instance();
+	Ref<AudioEffectInstance> instantiate() override;
 	void set_volume_db(float p_volume);
 	float get_volume_db() const;
 

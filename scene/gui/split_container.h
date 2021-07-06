@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,14 +27,14 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef SPLIT_CONTAINER_H
 #define SPLIT_CONTAINER_H
 
 #include "scene/gui/container.h"
 
 class SplitContainer : public Container {
-
-	GDCLASS(SplitContainer, Container)
+	GDCLASS(SplitContainer, Container);
 
 public:
 	enum DraggerVisibility {
@@ -44,15 +44,16 @@ public:
 	};
 
 private:
-	bool vertical;
-	int expand_ofs;
-	int middle_sep;
-	bool dragging;
-	int drag_from;
-	int drag_ofs;
-	bool collapsed;
-	DraggerVisibility dragger_visibility;
-	bool mouse_inside;
+	bool should_clamp_split_offset = false;
+	int split_offset = 0;
+	int middle_sep = 0;
+	bool vertical = false;
+	bool dragging = false;
+	int drag_from = 0;
+	int drag_ofs = 0;
+	bool collapsed = false;
+	DraggerVisibility dragger_visibility = DRAGGER_VISIBLE;
+	bool mouse_inside = false;
 
 	Control *_getch(int p_idx) const;
 
@@ -66,6 +67,7 @@ protected:
 public:
 	void set_split_offset(int p_offset);
 	int get_split_offset() const;
+	void clamp_split_offset();
 
 	void set_collapsed(bool p_collapsed);
 	bool is_collapsed() const;
@@ -73,9 +75,9 @@ public:
 	void set_dragger_visibility(DraggerVisibility p_visibility);
 	DraggerVisibility get_dragger_visibility() const;
 
-	virtual CursorShape get_cursor_shape(const Point2 &p_pos = Point2i()) const;
+	virtual CursorShape get_cursor_shape(const Point2 &p_pos = Point2i()) const override;
 
-	virtual Size2 get_minimum_size() const;
+	virtual Size2 get_minimum_size() const override;
 
 	SplitContainer(bool p_vertical = false);
 };
@@ -83,21 +85,19 @@ public:
 VARIANT_ENUM_CAST(SplitContainer::DraggerVisibility);
 
 class HSplitContainer : public SplitContainer {
-
 	GDCLASS(HSplitContainer, SplitContainer);
 
 public:
 	HSplitContainer() :
-			SplitContainer(false) { set_default_cursor_shape(CURSOR_HSPLIT); }
+			SplitContainer(false) {}
 };
 
 class VSplitContainer : public SplitContainer {
-
 	GDCLASS(VSplitContainer, SplitContainer);
 
 public:
 	VSplitContainer() :
-			SplitContainer(true) { set_default_cursor_shape(CURSOR_VSPLIT); }
+			SplitContainer(true) {}
 };
 
 #endif // SPLIT_CONTAINER_H

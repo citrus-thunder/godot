@@ -1,13 +1,12 @@
 /*************************************************************************/
 /*  godot_motion_state.h                                                 */
-/*  Author: AndreaCatania                                                */
 /*************************************************************************/
 /*                       This file is part of:                           */
 /*                           GODOT ENGINE                                */
-/*                    http://www.godotengine.org                         */
+/*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -32,23 +31,27 @@
 #ifndef GODOT_MOTION_STATE_H
 #define GODOT_MOTION_STATE_H
 
-#include "LinearMath/btMotionState.h"
 #include "rigid_body_bullet.h"
+
+#include <LinearMath/btMotionState.h>
+
+/**
+	@author AndreaCatania
+*/
 
 class RigidBodyBullet;
 
-// This clas is responsible to move kinematic actor
+// This class is responsible to move kinematic actor
 // and sincronize rendering engine with Bullet
 /// DOC:
 /// http://www.bulletphysics.org/mediawiki-1.5.8/index.php/MotionStates#What.27s_a_MotionState.3F
 class GodotMotionState : public btMotionState {
-
 	/// This data is used to store the new world position for kinematic body
 	btTransform bodyKinematicWorldTransf;
 	/// This data is used to store last world position
 	btTransform bodyCurrentWorldTransform;
 
-	RigidBodyBullet *owner;
+	RigidBodyBullet *owner = nullptr;
 
 public:
 	GodotMotionState(RigidBodyBullet *p_owner) :
@@ -78,12 +81,12 @@ public:
 	virtual void setWorldTransform(const btTransform &worldTrans) {
 		bodyCurrentWorldTransform = worldTrans;
 
-		owner->scratch();
+		owner->notify_transform_changed();
 	}
 
 public:
 	/// Use this function to move kinematic body
-	/// -- or set initial transfom before body creation.
+	/// -- or set initial transform before body creation.
 	void moveBody(const btTransform &newWorldTransform) {
 		bodyKinematicWorldTransf = newWorldTransform;
 	}

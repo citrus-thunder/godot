@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,6 +27,7 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef AUDIO_EFFECT_LIMITER_H
 #define AUDIO_EFFECT_LIMITER_H
 
@@ -35,18 +36,18 @@
 class AudioEffectLimiter;
 
 class AudioEffectLimiterInstance : public AudioEffectInstance {
-	GDCLASS(AudioEffectLimiterInstance, AudioEffectInstance)
+	GDCLASS(AudioEffectLimiterInstance, AudioEffectInstance);
 	friend class AudioEffectLimiter;
 	Ref<AudioEffectLimiter> base;
 
 	float mix_volume_db;
 
 public:
-	virtual void process(const AudioFrame *p_src_frames, AudioFrame *p_dst_frames, int p_frame_count);
+	virtual void process(const AudioFrame *p_src_frames, AudioFrame *p_dst_frames, int p_frame_count) override;
 };
 
 class AudioEffectLimiter : public AudioEffect {
-	GDCLASS(AudioEffectLimiter, AudioEffect)
+	GDCLASS(AudioEffectLimiter, AudioEffect);
 
 	friend class AudioEffectLimiterInstance;
 	float threshold;
@@ -70,7 +71,7 @@ public:
 	void set_soft_clip_ratio(float p_soft_clip);
 	float get_soft_clip_ratio() const;
 
-	Ref<AudioEffectInstance> instance();
+	Ref<AudioEffectInstance> instantiate() override;
 	void set_volume_db(float p_volume);
 	float get_volume_db() const;
 

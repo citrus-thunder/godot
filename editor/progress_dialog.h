@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,24 +27,24 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef PROGRESS_DIALOG_H
 #define PROGRESS_DIALOG_H
 
 #include "scene/gui/box_container.h"
+#include "scene/gui/button.h"
 #include "scene/gui/label.h"
 #include "scene/gui/popup.h"
 #include "scene/gui/progress_bar.h"
 
 class BackgroundProgress : public HBoxContainer {
-
 	GDCLASS(BackgroundProgress, HBoxContainer);
 
 	_THREAD_SAFE_CLASS_
 
 	struct Task {
-
-		HBoxContainer *hb;
-		ProgressBar *progress;
+		HBoxContainer *hb = nullptr;
+		ProgressBar *progress = nullptr;
 	};
 
 	Map<String, Task> tasks;
@@ -66,16 +66,16 @@ public:
 	BackgroundProgress() {}
 };
 
-class ProgressDialog : public Popup {
-
-	GDCLASS(ProgressDialog, Popup);
+class ProgressDialog : public PopupPanel {
+	GDCLASS(ProgressDialog, PopupPanel);
 	struct Task {
-
 		String task;
-		VBoxContainer *vb;
-		ProgressBar *progress;
-		Label *state;
+		VBoxContainer *vb = nullptr;
+		ProgressBar *progress = nullptr;
+		Label *state = nullptr;
 	};
+	HBoxContainer *cancel_hb;
+	Button *cancel;
 
 	Map<String, Task> tasks;
 	VBoxContainer *main;
@@ -84,13 +84,17 @@ class ProgressDialog : public Popup {
 	static ProgressDialog *singleton;
 	void _popup();
 
+	void _cancel_pressed();
+	bool cancelled;
+
 protected:
 	void _notification(int p_what);
+	static void _bind_methods();
 
 public:
 	static ProgressDialog *get_singleton() { return singleton; }
-	void add_task(const String &p_task, const String &p_label, int p_steps);
-	void task_step(const String &p_task, const String &p_state, int p_step = -1, bool p_force_redraw = true);
+	void add_task(const String &p_task, const String &p_label, int p_steps, bool p_can_cancel = false);
+	bool task_step(const String &p_task, const String &p_state, int p_step = -1, bool p_force_redraw = true);
 	void end_task(const String &p_task);
 
 	ProgressDialog();

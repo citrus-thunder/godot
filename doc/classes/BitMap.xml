@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<class name="BitMap" inherits="Resource" category="Core" version="3.0-beta">
+<class name="BitMap" inherits="Resource" version="4.0">
 	<brief_description>
 		Boolean matrix.
 	</brief_description>
@@ -8,8 +8,6 @@
 	</description>
 	<tutorials>
 	</tutorials>
-	<demos>
-	</demos>
 	<methods>
 		<method name="create">
 			<return type="void">
@@ -17,7 +15,7 @@
 			<argument index="0" name="size" type="Vector2">
 			</argument>
 			<description>
-				Creates a bitmap with the specified size, filled with false.
+				Creates a bitmap with the specified size, filled with [code]false[/code].
 			</description>
 		</method>
 		<method name="create_from_image_alpha">
@@ -25,8 +23,10 @@
 			</return>
 			<argument index="0" name="image" type="Image">
 			</argument>
+			<argument index="1" name="threshold" type="float" default="0.1">
+			</argument>
 			<description>
-				Creates a bitmap that matches the given image dimensions, every element of the bitmap is set to false if the alpha value of the image at that position is 0, and true in other case.
+				Creates a bitmap that matches the given image dimensions, every element of the bitmap is set to [code]false[/code] if the alpha value of the image at that position is equal to [code]threshold[/code] or less, and [code]true[/code] in other case.
 			</description>
 		</method>
 		<method name="get_bit" qualifiers="const">
@@ -49,7 +49,34 @@
 			<return type="int">
 			</return>
 			<description>
-				Returns the amount of bitmap elements that are set to true.
+				Returns the amount of bitmap elements that are set to [code]true[/code].
+			</description>
+		</method>
+		<method name="grow_mask">
+			<return type="void">
+			</return>
+			<argument index="0" name="pixels" type="int">
+			</argument>
+			<argument index="1" name="rect" type="Rect2">
+			</argument>
+			<description>
+				Applies morphological dilation to the bitmap. The first argument is the dilation amount, Rect2 is the area where the dilation will be applied.
+			</description>
+		</method>
+		<method name="opaque_to_polygons" qualifiers="const">
+			<return type="Array">
+			</return>
+			<argument index="0" name="rect" type="Rect2">
+			</argument>
+			<argument index="1" name="epsilon" type="float" default="2.0">
+			</argument>
+			<description>
+				Creates an [Array] of polygons covering a rectangular portion of the bitmap. It uses a marching squares algorithm, followed by Ramer-Douglas-Peucker (RDP) reduction of the number of vertices. Each polygon is described as a [PackedVector2Array] of its vertices.
+				To get polygons covering the whole bitmap, pass:
+				[codeblock]
+				Rect2(Vector2(), get_size())
+				[/codeblock]
+				[code]epsilon[/code] is passed to RDP to control how accurately the polygons cover the bitmap: a lower [code]epsilon[/code] corresponds to more points in the polygons.
 			</description>
 		</method>
 		<method name="set_bit">
@@ -66,7 +93,7 @@
 		<method name="set_bit_rect">
 			<return type="void">
 			</return>
-			<argument index="0" name="p_rect" type="Rect2">
+			<argument index="0" name="rect" type="Rect2">
 			</argument>
 			<argument index="1" name="bit" type="bool">
 			</argument>

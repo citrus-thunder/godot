@@ -1,13 +1,12 @@
 /*************************************************************************/
 /*  rid_bullet.h                                                         */
-/*  Author: AndreaCatania                                                */
 /*************************************************************************/
 /*                       This file is part of:                           */
 /*                           GODOT ENGINE                                */
-/*                    http://www.godotengine.org                         */
+/*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -32,19 +31,23 @@
 #ifndef RID_BULLET_H
 #define RID_BULLET_H
 
-#include "core/rid.h"
+#include "core/templates/rid.h"
 
-class BulletPhysicsServer;
+/**
+	@author AndreaCatania
+*/
 
-class RIDBullet : public RID_Data {
+class BulletPhysicsServer3D;
+
+class RIDBullet {
 	RID self;
-	BulletPhysicsServer *physicsServer;
+	BulletPhysicsServer3D *physicsServer = nullptr;
 
 public:
 	_FORCE_INLINE_ void set_self(const RID &p_self) { self = p_self; }
 	_FORCE_INLINE_ RID get_self() const { return self; }
 
-	_FORCE_INLINE_ void _set_physics_server(BulletPhysicsServer *p_physicsServer) { physicsServer = p_physicsServer; }
-	_FORCE_INLINE_ BulletPhysicsServer *get_physics_server() const { return physicsServer; }
+	_FORCE_INLINE_ void _set_physics_server(BulletPhysicsServer3D *p_physicsServer) { physicsServer = p_physicsServer; }
+	_FORCE_INLINE_ BulletPhysicsServer3D *get_physics_server() const { return physicsServer; }
 };
 #endif

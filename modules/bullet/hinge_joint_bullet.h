@@ -1,13 +1,12 @@
 /*************************************************************************/
 /*  hinge_joint_bullet.h                                                 */
-/*  Author: AndreaCatania                                                */
 /*************************************************************************/
 /*                       This file is part of:                           */
 /*                           GODOT ENGINE                                */
-/*                    http://www.godotengine.org                         */
+/*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -34,21 +33,25 @@
 
 #include "joint_bullet.h"
 
+/**
+	@author AndreaCatania
+*/
+
 class HingeJointBullet : public JointBullet {
 	class btHingeConstraint *hingeConstraint;
 
 public:
-	HingeJointBullet(RigidBodyBullet *rbA, RigidBodyBullet *rbB, const Transform &frameA, const Transform &frameB);
+	HingeJointBullet(RigidBodyBullet *rbA, RigidBodyBullet *rbB, const Transform3D &frameA, const Transform3D &frameB);
 	HingeJointBullet(RigidBodyBullet *rbA, RigidBodyBullet *rbB, const Vector3 &pivotInA, const Vector3 &pivotInB, const Vector3 &axisInA, const Vector3 &axisInB);
 
-	virtual PhysicsServer::JointType get_type() const { return PhysicsServer::JOINT_HINGE; }
+	virtual PhysicsServer3D::JointType get_type() const { return PhysicsServer3D::JOINT_HINGE; }
 
 	real_t get_hinge_angle();
 
-	void set_param(PhysicsServer::HingeJointParam p_param, real_t p_value);
-	real_t get_param(PhysicsServer::HingeJointParam p_param) const;
+	void set_param(PhysicsServer3D::HingeJointParam p_param, real_t p_value);
+	real_t get_param(PhysicsServer3D::HingeJointParam p_param) const;
 
-	void set_flag(PhysicsServer::HingeJointFlag p_flag, bool p_value);
-	bool get_flag(PhysicsServer::HingeJointFlag p_flag) const;
+	void set_flag(PhysicsServer3D::HingeJointFlag p_flag, bool p_value);
+	bool get_flag(PhysicsServer3D::HingeJointFlag p_flag) const;
 };
 #endif

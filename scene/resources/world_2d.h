@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,48 +27,42 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef WORLD_2D_H
 #define WORLD_2D_H
 
-#include "project_settings.h"
-#include "resource.h"
-#include "servers/physics_2d_server.h"
+#include "core/config/project_settings.h"
+#include "core/io/resource.h"
+#include "servers/physics_server_2d.h"
 
-class SpatialIndexer2D;
-class VisibilityNotifier2D;
+class VisibleOnScreenNotifier2D;
 class Viewport;
+struct SpatialIndexer2D;
 
 class World2D : public Resource {
-
 	GDCLASS(World2D, Resource);
 
 	RID canvas;
 	RID space;
+	RID navigation_map;
 
-	SpatialIndexer2D *indexer;
+	Set<Viewport *> viewports;
 
 protected:
 	static void _bind_methods();
 	friend class Viewport;
-	friend class VisibilityNotifier2D;
 
-	void _register_viewport(Viewport *p_viewport, const Rect2 &p_rect);
-	void _update_viewport(Viewport *p_viewport, const Rect2 &p_rect);
+	void _register_viewport(Viewport *p_viewport);
 	void _remove_viewport(Viewport *p_viewport);
 
-	void _register_notifier(VisibilityNotifier2D *p_notifier, const Rect2 &p_rect);
-	void _update_notifier(VisibilityNotifier2D *p_notifier, const Rect2 &p_rect);
-	void _remove_notifier(VisibilityNotifier2D *p_notifier);
-
-	void _update();
-
 public:
-	RID get_canvas();
-	RID get_space();
+	RID get_canvas() const;
+	RID get_space() const;
+	RID get_navigation_map() const;
 
-	Physics2DDirectSpaceState *get_direct_space_state();
+	PhysicsDirectSpaceState2D *get_direct_space_state();
 
-	void get_viewport_list(List<Viewport *> *r_viewports);
+	_FORCE_INLINE_ const Set<Viewport *> &get_viewports() { return viewports; }
 
 	World2D();
 	~World2D();

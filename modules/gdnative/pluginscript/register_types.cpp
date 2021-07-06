@@ -3,10 +3,10 @@
 /*************************************************************************/
 /*                       This file is part of:                           */
 /*                           GODOT ENGINE                                */
-/*                    http://www.godotengine.org                         */
+/*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,13 +27,14 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #include "register_types.h"
 
-#include "core/project_settings.h"
-#include "io/resource_loader.h"
-#include "io/resource_saver.h"
-#include "os/dir_access.h"
-#include "os/os.h"
+#include "core/config/project_settings.h"
+#include "core/io/dir_access.h"
+#include "core/io/resource_loader.h"
+#include "core/io/resource_saver.h"
+#include "core/os/os.h"
 #include "scene/main/scene_tree.h"
 
 #include "pluginscript_language.h"
@@ -63,7 +64,7 @@ static Error _check_language_desc(const godot_pluginscript_language_desc *desc) 
 	// desc->make_function is not mandatory
 	// desc->complete_code is not mandatory
 	// desc->auto_indent_code is not mandatory
-	// desc->add_global_constant is not mandatory
+	ERR_FAIL_COND_V(!desc->add_global_constant, ERR_BUG);
 	// desc->debug_get_error is not mandatory
 	// desc->debug_get_stack_level_count is not mandatory
 	// desc->debug_get_stack_level_line is not mandatory
@@ -77,7 +78,7 @@ static Error _check_language_desc(const godot_pluginscript_language_desc *desc) 
 	// desc->profiling_stop is not mandatory
 	// desc->profiling_get_accumulated_data is not mandatory
 	// desc->profiling_get_frame_data is not mandatory
-	// desc->frame is not mandatory
+	// desc->profiling_frame is not mandatory
 
 	ERR_FAIL_COND_V(!desc->script_desc.init, ERR_BUG);
 	ERR_FAIL_COND_V(!desc->script_desc.finish, ERR_BUG);
@@ -113,6 +114,8 @@ void unregister_pluginscript_types() {
 	for (List<PluginScriptLanguage *>::Element *e = pluginscript_languages.front(); e; e = e->next()) {
 		PluginScriptLanguage *language = e->get();
 		ScriptServer::unregister_language(language);
+		ResourceLoader::remove_resource_format_loader(language->get_resource_loader());
+		ResourceSaver::remove_resource_format_saver(language->get_resource_saver());
 		memdelete(language);
 	}
 }

@@ -1,13 +1,12 @@
 /*************************************************************************/
 /*  joint_bullet.h                                                       */
-/*  Author: AndreaCatania                                                */
 /*************************************************************************/
 /*                       This file is part of:                           */
 /*                           GODOT ENGINE                                */
-/*                    http://www.godotengine.org                         */
+/*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -33,17 +32,20 @@
 #define JOINT_BULLET_H
 
 #include "constraint_bullet.h"
-#include "servers/physics_server.h"
+#include "servers/physics_server_3d.h"
+
+/**
+	@author AndreaCatania
+*/
 
 class RigidBodyBullet;
 class btTypedConstraint;
 
 class JointBullet : public ConstraintBullet {
-
 public:
 	JointBullet();
 	virtual ~JointBullet();
 
-	virtual PhysicsServer::JointType get_type() const = 0;
+	virtual PhysicsServer3D::JointType get_type() const = 0;
 };
 #endif

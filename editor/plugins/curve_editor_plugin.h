@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -33,15 +33,17 @@
 
 #include "editor/editor_node.h"
 #include "editor/editor_plugin.h"
+#include "editor/editor_resource_preview.h"
 #include "scene/resources/curve.h"
 
 // Edits a y(x) curve
 class CurveEditor : public Control {
-	GDCLASS(CurveEditor, Control)
+	GDCLASS(CurveEditor, Control);
+
 public:
 	CurveEditor();
 
-	Size2 get_minimum_size() const;
+	Size2 get_minimum_size() const override;
 
 	void set_curve(Ref<Curve> curve);
 
@@ -96,8 +98,6 @@ private:
 
 	void _draw();
 
-	void stroke_rect(Rect2 rect, Color color);
-
 private:
 	Transform2D _world_to_view;
 
@@ -119,35 +119,29 @@ private:
 	float _tangents_length;
 };
 
+class EditorInspectorPluginCurve : public EditorInspectorPlugin {
+	GDCLASS(EditorInspectorPluginCurve, EditorInspectorPlugin);
+
+public:
+	virtual bool can_handle(Object *p_object) override;
+	virtual void parse_begin(Object *p_object) override;
+};
+
 class CurveEditorPlugin : public EditorPlugin {
-	GDCLASS(CurveEditorPlugin, EditorPlugin)
+	GDCLASS(CurveEditorPlugin, EditorPlugin);
+
 public:
 	CurveEditorPlugin(EditorNode *p_node);
-	~CurveEditorPlugin();
 
-	String get_name() const { return "Curve"; }
-	bool has_main_screen() const { return false; }
-	void edit(Object *p_object);
-	bool handles(Object *p_object) const;
-	void make_visible(bool p_visible);
-
-private:
-	static void _bind_methods();
-
-	void _curve_texture_changed();
-
-private:
-	CurveEditor *_view;
-	Ref<Resource> _current_ref;
-	EditorNode *_editor_node;
-	ToolButton *_toggle_button;
+	virtual String get_name() const override { return "Curve"; }
 };
 
 class CurvePreviewGenerator : public EditorResourcePreviewGenerator {
-	GDCLASS(CurvePreviewGenerator, EditorResourcePreviewGenerator)
+	GDCLASS(CurvePreviewGenerator, EditorResourcePreviewGenerator);
+
 public:
-	bool handles(const String &p_type) const;
-	Ref<Texture> generate(const Ref<Resource> &p_from);
+	virtual bool handles(const String &p_type) const override;
+	virtual Ref<Texture2D> generate(const Ref<Resource> &p_from, const Size2 &p_size) const override;
 };
 
 #endif // CURVE_EDITOR_PLUGIN_H

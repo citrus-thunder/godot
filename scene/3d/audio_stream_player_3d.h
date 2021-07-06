@@ -1,21 +1,53 @@
+/*************************************************************************/
+/*  audio_stream_player_3d.h                                             */
+/*************************************************************************/
+/*                       This file is part of:                           */
+/*                           GODOT ENGINE                                */
+/*                      https://godotengine.org                          */
+/*************************************************************************/
+/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
+/*                                                                       */
+/* Permission is hereby granted, free of charge, to any person obtaining */
+/* a copy of this software and associated documentation files (the       */
+/* "Software"), to deal in the Software without restriction, including   */
+/* without limitation the rights to use, copy, modify, merge, publish,   */
+/* distribute, sublicense, and/or sell copies of the Software, and to    */
+/* permit persons to whom the Software is furnished to do so, subject to */
+/* the following conditions:                                             */
+/*                                                                       */
+/* The above copyright notice and this permission notice shall be        */
+/* included in all copies or substantial portions of the Software.       */
+/*                                                                       */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
+/*************************************************************************/
+
 #ifndef AUDIO_STREAM_PLAYER_3D_H
 #define AUDIO_STREAM_PLAYER_3D_H
 
-#include "scene/3d/spatial.h"
-#include "scene/3d/spatial_velocity_tracker.h"
+#include "core/templates/safe_refcount.h"
+#include "scene/3d/node_3d.h"
+#include "scene/3d/velocity_tracker_3d.h"
 #include "servers/audio/audio_filter_sw.h"
 #include "servers/audio/audio_stream.h"
 #include "servers/audio_server.h"
 
-class Camera;
-class AudioStreamPlayer3D : public Spatial {
+class Camera3D;
+class AudioStreamPlayer3D : public Node3D {
+	GDCLASS(AudioStreamPlayer3D, Node3D);
 
-	GDCLASS(AudioStreamPlayer3D, Spatial)
 public:
 	enum AttenuationModel {
 		ATTENUATION_INVERSE_DISTANCE,
 		ATTENUATION_INVERSE_SQUARE_DISTANCE,
 		ATTENUATION_LOGARITHMIC,
+		ATTENUATION_DISABLED,
 	};
 
 	enum OutOfRangeMode {
@@ -37,48 +69,45 @@ private:
 	};
 
 	struct Output {
-
 		AudioFilterSW filter;
-		AudioFilterSW::Processor filter_process[6];
+		AudioFilterSW::Processor filter_process[8];
 		AudioFrame vol[4];
-		float filter_gain;
-		float pitch_scale;
-		int bus_index;
-		int reverb_bus_index;
+		float filter_gain = 0.0;
+		float pitch_scale = 0.0;
+		int bus_index = -1;
+		int reverb_bus_index = -1;
 		AudioFrame reverb_vol[4];
-		Viewport *viewport; //pointer only used for reference to previous mix
-
-		Output() {
-			filter_gain = 0;
-			viewport = NULL;
-			reverb_bus_index = -1;
-			bus_index = -1;
-		}
+		Viewport *viewport = nullptr; //pointer only used for reference to previous mix
 	};
 
 	Output outputs[MAX_OUTPUTS];
-	volatile int output_count;
-	volatile bool output_ready;
+	SafeNumeric<int> output_count;
+	SafeFlag output_ready;
 
 	//these are used by audio thread to have a reference of previous volumes (for ramping volume and avoiding clicks)
 	Output prev_outputs[MAX_OUTPUTS];
-	int prev_output_count;
+	int prev_output_count = 0;
 
 	Ref<AudioStreamPlayback> stream_playback;
 	Ref<AudioStream> stream;
 	Vector<AudioFrame> mix_buffer;
 
-	volatile float setseek;
-	volatile bool active;
-	volatile float setplay;
+	SafeNumeric<float> setseek{ -1.0 };
+	SafeFlag active;
+	SafeNumeric<float> setplay{ -1.0 };
 
-	AttenuationModel attenuation_model;
-	float unit_db;
-	float unit_size;
-	float max_db;
-	bool autoplay;
+	AttenuationModel attenuation_model = ATTENUATION_INVERSE_DISTANCE;
+	float unit_db = 0.0;
+	float unit_size = 10.0;
+	float max_db = 3.0;
+	float pitch_scale = 1.0;
+	bool autoplay = false;
+	bool stream_paused = false;
+	bool stream_paused_fade_in = false;
+	bool stream_paused_fade_out = false;
 	StringName bus;
 
+	static void _calc_output_vol(const Vector3 &source_dir, real_t tightness, Output &output);
 	void _mix_audio();
 	static void _mix_audios(void *self) { reinterpret_cast<AudioStreamPlayer3D *>(self)->_mix_audio(); }
 
@@ -87,26 +116,26 @@ private:
 
 	void _bus_layout_changed();
 
-	uint32_t area_mask;
+	uint32_t area_mask = 1;
 
-	bool emission_angle_enabled;
-	float emission_angle;
-	float emission_angle_filter_attenuation_db;
-	float attenuation_filter_cutoff_hz;
-	float attenuation_filter_db;
+	bool emission_angle_enabled = false;
+	float emission_angle = 45.0;
+	float emission_angle_filter_attenuation_db = -12.0;
+	float attenuation_filter_cutoff_hz = 5000.0;
+	float attenuation_filter_db = -24.0;
 
-	float max_distance;
+	float max_distance = 0.0;
 
-	Ref<SpatialVelocityTracker> velocity_tracker;
+	Ref<VelocityTracker3D> velocity_tracker;
 
-	DopplerTracking doppler_tracking;
+	DopplerTracking doppler_tracking = DOPPLER_TRACKING_DISABLED;
 
-	OutOfRangeMode out_of_range_mode;
+	OutOfRangeMode out_of_range_mode = OUT_OF_RANGE_MIX;
 
 	float _get_attenuation_db(float p_distance) const;
 
 protected:
-	void _validate_property(PropertyInfo &property) const;
+	void _validate_property(PropertyInfo &property) const override;
 	void _notification(int p_what);
 	static void _bind_methods();
 
@@ -122,6 +151,9 @@ public:
 
 	void set_max_db(float p_boost);
 	float get_max_db() const;
+
+	void set_pitch_scale(float p_pitch_scale);
+	float get_pitch_scale() const;
 
 	void play(float p_from_pos = 0.0);
 	void seek(float p_seconds);
@@ -164,6 +196,11 @@ public:
 
 	void set_doppler_tracking(DopplerTracking p_tracking);
 	DopplerTracking get_doppler_tracking() const;
+
+	void set_stream_paused(bool p_pause);
+	bool get_stream_paused() const;
+
+	Ref<AudioStreamPlayback> get_stream_playback();
 
 	AudioStreamPlayer3D();
 	~AudioStreamPlayer3D();

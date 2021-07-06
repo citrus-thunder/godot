@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,18 +27,19 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 //
 // This file demonstrates how to initialize EGL in a Windows Store app, using ICoreWindow.
 //
 
 #include "app.h"
 
-#include "core/os/dir_access.h"
-#include "core/os/file_access.h"
+#include "core/io/dir_access.h"
+#include "core/io/file_access.h"
 #include "core/os/keyboard.h"
 #include "main/main.h"
 
-#include "platform/windows/key_mapping_win.h"
+#include "platform/windows/key_mapping_windows.h"
 
 #include <collection.h>
 
@@ -77,17 +78,6 @@ public:
 	return 0;
 }
 
-App::App() :
-		mWindowClosed(false),
-		mWindowVisible(true),
-		mWindowWidth(0),
-		mWindowHeight(0),
-		mEglDisplay(EGL_NO_DISPLAY),
-		mEglContext(EGL_NO_CONTEXT),
-		mEglSurface(EGL_NO_SURFACE),
-		number_of_contacts(0) {
-}
-
 // The first method called when the IFrameworkView is being created.
 void App::Initialize(CoreApplicationView ^ applicationView) {
 	// Register event handlers for app lifecycle. This example includes Activated, so that we
@@ -99,7 +89,7 @@ void App::Initialize(CoreApplicationView ^ applicationView) {
 	// Information about the Suspending and Resuming event handlers can be found here:
 	// http://msdn.microsoft.com/en-us/library/windows/apps/xaml/hh994930.aspx
 
-	os = new OSUWP;
+	os = new OS_UWP;
 }
 
 // Called when the CoreWindow object is created (or re-created).
@@ -143,53 +133,51 @@ void App::SetWindow(CoreWindow ^ p_window) {
 	window->KeyUp +=
 			ref new TypedEventHandler<CoreWindow ^, KeyEventArgs ^>(this, &App::OnKeyUp);
 
+	os->set_window(window);
+
 	unsigned int argc;
 	char **argv = get_command_line(&argc);
 
 	Main::setup("uwp", argc, argv, false);
 
-	// The CoreWindow has been created, so EGL can be initialized.
-	ContextEGL *context = memnew(ContextEGL(window));
-	os->set_gl_context(context);
 	UpdateWindowSize(Size(window->Bounds.Width, window->Bounds.Height));
 
 	Main::setup2();
 }
 
-static int _get_button(Windows::UI::Input::PointerPoint ^ pt) {
-
+static MouseButton _get_button(Windows::UI::Input::PointerPoint ^ pt) {
 	using namespace Windows::UI::Input;
 
 #if WINAPI_FAMILY == WINAPI_FAMILY_PHONE_APP
-	return BUTTON_LEFT;
+	return MOUSE_BUTTON_LEFT;
 #else
 	switch (pt->Properties->PointerUpdateKind) {
 		case PointerUpdateKind::LeftButtonPressed:
 		case PointerUpdateKind::LeftButtonReleased:
-			return BUTTON_LEFT;
+			return MOUSE_BUTTON_LEFT;
 
 		case PointerUpdateKind::RightButtonPressed:
 		case PointerUpdateKind::RightButtonReleased:
-			return BUTTON_RIGHT;
+			return MOUSE_BUTTON_RIGHT;
 
 		case PointerUpdateKind::MiddleButtonPressed:
 		case PointerUpdateKind::MiddleButtonReleased:
-			return BUTTON_MIDDLE;
+			return MOUSE_BUTTON_MIDDLE;
 
 		case PointerUpdateKind::XButton1Pressed:
 		case PointerUpdateKind::XButton1Released:
-			return BUTTON_WHEEL_UP;
+			return MOUSE_BUTTON_WHEEL_UP;
 
 		case PointerUpdateKind::XButton2Pressed:
 		case PointerUpdateKind::XButton2Released:
-			return BUTTON_WHEEL_DOWN;
+			return MOUSE_BUTTON_WHEEL_DOWN;
 
 		default:
 			break;
 	}
 #endif
 
-	return 0;
+	return MOUSE_BUTTON_NONE;
 };
 
 static bool _is_touch(Windows::UI::Input::PointerPoint ^ pointerPoint) {
@@ -208,7 +196,6 @@ static bool _is_touch(Windows::UI::Input::PointerPoint ^ pointerPoint) {
 }
 
 static Windows::Foundation::Point _get_pixel_position(CoreWindow ^ window, Windows::Foundation::Point rawPosition, OS *os) {
-
 	Windows::Foundation::Point outputPosition;
 
 // Compute coordinates normalized from 0..1.
@@ -248,19 +235,16 @@ static Windows::Foundation::Point _get_pixel_position(CoreWindow ^ window, Windo
 };
 
 static int _get_finger(uint32_t p_touch_id) {
-
 	return p_touch_id % 31; // for now
 };
 
 void App::pointer_event(Windows::UI::Core::CoreWindow ^ sender, Windows::UI::Core::PointerEventArgs ^ args, bool p_pressed, bool p_is_wheel) {
-
 	Windows::UI::Input::PointerPoint ^ point = args->CurrentPoint;
 	Windows::Foundation::Point pos = _get_pixel_position(window, point->Position, os);
-	int but = _get_button(point);
+	MouseButton but = _get_button(point);
 	if (_is_touch(point)) {
-
 		Ref<InputEventScreenTouch> screen_touch;
-		screen_touch.instance();
+		screen_touch.instantiate();
 		screen_touch->set_device(0);
 		screen_touch->set_pressed(p_pressed);
 		screen_touch->set_position(Vector2(pos.X, pos.Y));
@@ -270,58 +254,49 @@ void App::pointer_event(Windows::UI::Core::CoreWindow ^ sender, Windows::UI::Cor
 		last_touch_y[screen_touch->get_index()] = pos.Y;
 
 		os->input_event(screen_touch);
-		if (number_of_contacts > 1)
-			return;
+	} else {
+		Ref<InputEventMouseButton> mouse_button;
+		mouse_button.instantiate();
+		mouse_button->set_device(0);
+		mouse_button->set_pressed(p_pressed);
+		mouse_button->set_button_index(but);
+		mouse_button->set_position(Vector2(pos.X, pos.Y));
+		mouse_button->set_global_position(Vector2(pos.X, pos.Y));
 
-	}; // fallthrought of sorts
-
-	Ref<InputEventMouseButton> mouse_button;
-	mouse_button.instance();
-	mouse_button->set_device(0);
-	mouse_button->set_pressed(p_pressed);
-	mouse_button->set_button_index(but);
-	mouse_button->set_position(Vector2(pos.X, pos.Y));
-	mouse_button->set_global_position(Vector2(pos.X, pos.Y));
-
-	if (p_is_wheel) {
-		if (point->Properties->MouseWheelDelta > 0) {
-			mouse_button->set_button_index(point->Properties->IsHorizontalMouseWheel ? BUTTON_WHEEL_RIGHT : BUTTON_WHEEL_UP);
-		} else if (point->Properties->MouseWheelDelta < 0) {
-			mouse_button->set_button_index(point->Properties->IsHorizontalMouseWheel ? BUTTON_WHEEL_LEFT : BUTTON_WHEEL_DOWN);
+		if (p_is_wheel) {
+			if (point->Properties->MouseWheelDelta > 0) {
+				mouse_button->set_button_index(point->Properties->IsHorizontalMouseWheel ? MOUSE_BUTTON_WHEEL_RIGHT : MOUSE_BUTTON_WHEEL_UP);
+			} else if (point->Properties->MouseWheelDelta < 0) {
+				mouse_button->set_button_index(point->Properties->IsHorizontalMouseWheel ? MOUSE_BUTTON_WHEEL_LEFT : MOUSE_BUTTON_WHEEL_DOWN);
+			}
 		}
-	}
 
-	last_touch_x[31] = pos.X;
-	last_touch_y[31] = pos.Y;
+		last_touch_x[31] = pos.X;
+		last_touch_y[31] = pos.Y;
 
-	os->input_event(mouse_button);
-
-	if (p_is_wheel) {
-		// Send release for mouse wheel
-		mouse_button->set_pressed(false);
 		os->input_event(mouse_button);
+
+		if (p_is_wheel) {
+			// Send release for mouse wheel
+			mouse_button->set_pressed(false);
+			os->input_event(mouse_button);
+		}
 	}
 };
 
 void App::OnPointerPressed(Windows::UI::Core::CoreWindow ^ sender, Windows::UI::Core::PointerEventArgs ^ args) {
-
-	number_of_contacts++;
 	pointer_event(sender, args, true);
 };
 
 void App::OnPointerReleased(Windows::UI::Core::CoreWindow ^ sender, Windows::UI::Core::PointerEventArgs ^ args) {
-
-	number_of_contacts--;
 	pointer_event(sender, args, false);
 };
 
 void App::OnPointerWheelChanged(Windows::UI::Core::CoreWindow ^ sender, Windows::UI::Core::PointerEventArgs ^ args) {
-
 	pointer_event(sender, args, true, true);
 }
 
 void App::OnMouseModeChanged(Windows::System::Threading::Core::SignalNotifier ^ signalNotifier, bool timedOut) {
-
 	OS::MouseMode mode = os->get_mouse_mode();
 	SignalNotifier ^ notifier = mouseChangedNotifier;
 
@@ -330,12 +305,10 @@ void App::OnMouseModeChanged(Windows::System::Threading::Core::SignalNotifier ^ 
 			ref new DispatchedHandler(
 					[mode, notifier, this]() {
 						if (mode == OS::MOUSE_MODE_CAPTURED) {
-
 							this->MouseMovedToken = MouseDevice::GetForCurrentView()->MouseMoved +=
 									ref new TypedEventHandler<MouseDevice ^, MouseEventArgs ^>(this, &App::OnMouseMoved);
 
 						} else {
-
 							MouseDevice::GetForCurrentView()->MouseMoved -= MouseMovedToken;
 						}
 
@@ -346,53 +319,49 @@ void App::OnMouseModeChanged(Windows::System::Threading::Core::SignalNotifier ^ 
 }
 
 void App::OnPointerMoved(Windows::UI::Core::CoreWindow ^ sender, Windows::UI::Core::PointerEventArgs ^ args) {
-
 	Windows::UI::Input::PointerPoint ^ point = args->CurrentPoint;
 	Windows::Foundation::Point pos = _get_pixel_position(window, point->Position, os);
 
-	if (point->IsInContact && _is_touch(point)) {
-
+	if (_is_touch(point)) {
 		Ref<InputEventScreenDrag> screen_drag;
-		screen_drag.instance();
+		screen_drag.instantiate();
 		screen_drag->set_device(0);
 		screen_drag->set_position(Vector2(pos.X, pos.Y));
 		screen_drag->set_index(_get_finger(point->PointerId));
 		screen_drag->set_relative(Vector2(screen_drag->get_position().x - last_touch_x[screen_drag->get_index()], screen_drag->get_position().y - last_touch_y[screen_drag->get_index()]));
 
 		os->input_event(screen_drag);
-		if (number_of_contacts > 1)
+	} else {
+		// In case the mouse grabbed, MouseMoved will handle this
+		if (os->get_mouse_mode() == OS::MouseMode::MOUSE_MODE_CAPTURED) {
 			return;
+		}
 
-	}; // fallthrought of sorts
+		Ref<InputEventMouseMotion> mouse_motion;
+		mouse_motion.instantiate();
+		mouse_motion->set_device(0);
+		mouse_motion->set_position(Vector2(pos.X, pos.Y));
+		mouse_motion->set_global_position(Vector2(pos.X, pos.Y));
+		mouse_motion->set_relative(Vector2(pos.X - last_touch_x[31], pos.Y - last_touch_y[31]));
 
-	// In case the mouse grabbed, MouseMoved will handle this
-	if (os->get_mouse_mode() == OS::MouseMode::MOUSE_MODE_CAPTURED)
-		return;
+		last_mouse_pos = pos;
 
-	Ref<InputEventMouseMotion> mouse_motion;
-	mouse_motion.instance();
-	mouse_motion->set_device(0);
-	mouse_motion->set_position(Vector2(pos.X, pos.Y));
-	mouse_motion->set_global_position(Vector2(pos.X, pos.Y));
-	mouse_motion->set_relative(Vector2(pos.X - last_touch_x[31], pos.Y - last_touch_y[31]));
-
-	last_mouse_pos = pos;
-
-	os->input_event(mouse_motion);
+		os->input_event(mouse_motion);
+	}
 }
 
 void App::OnMouseMoved(MouseDevice ^ mouse_device, MouseEventArgs ^ args) {
-
 	// In case the mouse isn't grabbed, PointerMoved will handle this
-	if (os->get_mouse_mode() != OS::MouseMode::MOUSE_MODE_CAPTURED)
+	if (os->get_mouse_mode() != OS::MouseMode::MOUSE_MODE_CAPTURED) {
 		return;
+	}
 
 	Windows::Foundation::Point pos;
 	pos.X = last_mouse_pos.X + args->MouseDelta.X;
 	pos.Y = last_mouse_pos.Y + args->MouseDelta.Y;
 
 	Ref<InputEventMouseMotion> mouse_motion;
-	mouse_motion.instance();
+	mouse_motion.instantiate();
 	mouse_motion->set_device(0);
 	mouse_motion->set_position(Vector2(pos.X, pos.Y));
 	mouse_motion->set_global_position(Vector2(pos.X, pos.Y));
@@ -404,8 +373,7 @@ void App::OnMouseMoved(MouseDevice ^ mouse_device, MouseEventArgs ^ args) {
 }
 
 void App::key_event(Windows::UI::Core::CoreWindow ^ sender, bool p_pressed, Windows::UI::Core::KeyEventArgs ^ key_args, Windows::UI::Core::CharacterReceivedEventArgs ^ char_args) {
-
-	OSUWP::KeyEvent ke;
+	OS_UWP::KeyEvent ke;
 
 	ke.control = sender->GetAsyncKeyState(VirtualKey::Control) == CoreVirtualKeyStates::Down;
 	ke.alt = sender->GetAsyncKeyState(VirtualKey::Menu) == CoreVirtualKeyStates::Down;
@@ -414,22 +382,23 @@ void App::key_event(Windows::UI::Core::CoreWindow ^ sender, bool p_pressed, Wind
 	ke.pressed = p_pressed;
 
 	if (key_args != nullptr) {
-
-		ke.type = OSUWP::KeyEvent::MessageType::KEY_EVENT_MESSAGE;
+		ke.type = OS_UWP::KeyEvent::MessageType::KEY_EVENT_MESSAGE;
 		ke.unicode = 0;
-		ke.scancode = KeyMappingWindows::get_keysym((unsigned int)key_args->VirtualKey);
+		ke.keycode = KeyMappingWindows::get_keysym((unsigned int)key_args->VirtualKey);
+		ke.physical_keycode = KeyMappingWindows::get_scansym((unsigned int)key_args->KeyStatus.ScanCode, key_args->KeyStatus.IsExtendedKey);
 		ke.echo = (!p_pressed && !key_args->KeyStatus.IsKeyReleased) || (p_pressed && key_args->KeyStatus.WasKeyDown);
 
 	} else {
-
-		ke.type = OSUWP::KeyEvent::MessageType::CHAR_EVENT_MESSAGE;
+		ke.type = OS_UWP::KeyEvent::MessageType::CHAR_EVENT_MESSAGE;
 		ke.unicode = char_args->KeyCode;
-		ke.scancode = 0;
+		ke.keycode = 0;
+		ke.physical_keycode = 0;
 		ke.echo = (!p_pressed && !char_args->KeyStatus.IsKeyReleased) || (p_pressed && char_args->KeyStatus.WasKeyDown);
 	}
 
 	os->queue_key_event(ke);
 }
+
 void App::OnKeyDown(CoreWindow ^ sender, KeyEventArgs ^ args) {
 	key_event(sender, true, args);
 }
@@ -511,15 +480,13 @@ void App::UpdateWindowSize(Size size) {
 }
 
 char **App::get_command_line(unsigned int *out_argc) {
-
-	static char *fail_cl[] = { "--path", "game", NULL };
+	static char *fail_cl[] = { "--path", "game", nullptr };
 	*out_argc = 2;
 
 	FILE *f = _wfopen(L"__cl__.cl", L"rb");
 
-	if (f == NULL) {
-
-		wprintf(L"Couldn't open command line file.");
+	if (f == nullptr) {
+		wprintf(L"Couldn't open command line file.\n");
 		return fail_cl;
 	}
 
@@ -533,19 +500,18 @@ char **App::get_command_line(unsigned int *out_argc) {
 
 	if (r < 4) {
 		fclose(f);
-		wprintf(L"Wrong cmdline length.");
+		wprintf(L"Wrong cmdline length.\n");
 		return (fail_cl);
 	}
 
 	int argc = READ_LE_4(len);
 
 	for (int i = 0; i < argc; i++) {
-
 		r = fread(len, sizeof(uint8_t), 4, f);
 
 		if (r < 4) {
 			fclose(f);
-			wprintf(L"Wrong cmdline param length.");
+			wprintf(L"Wrong cmdline param length.\n");
 			return (fail_cl);
 		}
 
@@ -553,7 +519,7 @@ char **App::get_command_line(unsigned int *out_argc) {
 
 		if (strlen > CMD_MAX_LEN) {
 			fclose(f);
-			wprintf(L"Wrong command length.");
+			wprintf(L"Wrong command length.\n");
 			return (fail_cl);
 		}
 
@@ -562,8 +528,7 @@ char **App::get_command_line(unsigned int *out_argc) {
 		arg[strlen] = '\0';
 
 		if (r == strlen) {
-
-			int warg_size = MultiByteToWideChar(CP_UTF8, 0, arg, -1, NULL, 0);
+			int warg_size = MultiByteToWideChar(CP_UTF8, 0, arg, -1, nullptr, 0);
 			wchar_t *warg = new wchar_t[warg_size];
 
 			MultiByteToWideChar(CP_UTF8, 0, arg, -1, warg, warg_size);
@@ -571,10 +536,9 @@ char **App::get_command_line(unsigned int *out_argc) {
 			cl.Append(ref new Platform::String(warg, warg_size));
 
 		} else {
-
 			delete[] arg;
 			fclose(f);
-			wprintf(L"Error reading command.");
+			wprintf(L"Error reading command.\n");
 			return (fail_cl);
 		}
 	}
@@ -587,15 +551,14 @@ char **App::get_command_line(unsigned int *out_argc) {
 	char **ret = new char *[cl.Size + 1];
 
 	for (int i = 0; i < cl.Size; i++) {
-
-		int arg_size = WideCharToMultiByte(CP_UTF8, 0, cl.GetAt(i)->Data(), -1, NULL, 0, NULL, NULL);
+		int arg_size = WideCharToMultiByte(CP_UTF8, 0, cl.GetAt(i)->Data(), -1, nullptr, 0, nullptr, nullptr);
 		char *arg = new char[arg_size];
 
-		WideCharToMultiByte(CP_UTF8, 0, cl.GetAt(i)->Data(), -1, arg, arg_size, NULL, NULL);
+		WideCharToMultiByte(CP_UTF8, 0, cl.GetAt(i)->Data(), -1, arg, arg_size, nullptr, nullptr);
 
 		ret[i] = arg;
 	}
-	ret[cl.Size] = NULL;
+	ret[cl.Size] = nullptr;
 	*out_argc = cl.Size;
 
 	return ret;

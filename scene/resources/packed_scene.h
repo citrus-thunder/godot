@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,15 +27,15 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef PACKED_SCENE_H
 #define PACKED_SCENE_H
 
-#include "resource.h"
+#include "core/io/resource.h"
 #include "scene/main/node.h"
 
-class SceneState : public Reference {
-
-	GDCLASS(SceneState, Reference);
+class SceneState : public RefCounted {
+	GDCLASS(SceneState, RefCounted);
 
 	Vector<StringName> names;
 	Vector<Variant> variants;
@@ -44,24 +44,25 @@ class SceneState : public Reference {
 	mutable HashMap<NodePath, int> node_path_cache;
 	mutable Map<int, int> base_scene_node_remap;
 
-	int base_scene_idx;
+	int base_scene_idx = -1;
 
 	enum {
 		NO_PARENT_SAVED = 0x7FFFFFFF,
+		NAME_INDEX_BITS = 18,
+		NAME_MASK = (1 << NAME_INDEX_BITS) - 1,
 	};
 
 	struct NodeData {
-
-		int parent;
-		int owner;
-		int type;
-		int name;
-		int instance;
+		int parent = 0;
+		int owner = 0;
+		int type = 0;
+		int name = 0;
+		int instance = 0;
+		int index = 0;
 
 		struct Property {
-
-			int name;
-			int value;
+			int name = 0;
+			int value = 0;
 		};
 
 		Vector<Property> properties;
@@ -70,19 +71,17 @@ class SceneState : public Reference {
 
 	struct PackState {
 		Ref<SceneState> state;
-		int node;
-		PackState() { node = -1; }
+		int node = -1;
 	};
 
 	Vector<NodeData> nodes;
 
 	struct ConnectionData {
-
-		int from;
-		int to;
-		int signal;
-		int method;
-		int flags;
+		int from = 0;
+		int to = 0;
+		int signal = 0;
+		int method = 0;
+		int flags = 0;
 		Vector<int> binds;
 	};
 
@@ -93,13 +92,13 @@ class SceneState : public Reference {
 
 	String path;
 
-	uint64_t last_modified_time;
+	uint64_t last_modified_time = 0;
 
 	_FORCE_INLINE_ Ref<SceneState> _get_base_scene_state() const;
 
 	static bool disable_placeholders;
 
-	PoolVector<String> _get_node_groups(int p_idx) const;
+	Vector<String> _get_node_groups(int p_idx) const;
 
 	int _find_base_scene_node_remap_key(int p_idx) const;
 
@@ -137,8 +136,8 @@ public:
 
 	void clear();
 
-	bool can_instance() const;
-	Node *instance(GenEditState p_edit_state) const;
+	bool can_instantiate() const;
+	Node *instantiate(GenEditState p_edit_state) const;
 
 	//unbuild API
 
@@ -151,6 +150,7 @@ public:
 	String get_node_instance_placeholder(int p_idx) const;
 	bool is_node_instance_placeholder(int p_idx) const;
 	Vector<StringName> get_node_groups(int p_idx) const;
+	int get_node_index(int p_idx) const;
 
 	int get_node_property_count(int p_idx) const;
 	StringName get_node_property_name(int p_idx, int p_prop) const;
@@ -171,10 +171,9 @@ public:
 	//build API
 
 	int add_name(const StringName &p_name);
-	int find_name(const StringName &p_name) const;
 	int add_value(const Variant &p_value);
 	int add_node_path(const NodePath &p_path);
-	int add_node(int p_parent, int p_owner, int p_type, int p_name, int p_instance);
+	int add_node(int p_parent, int p_owner, int p_type, int p_name, int p_instance, int p_index);
 	void add_node_property(int p_node, int p_name, int p_value);
 	void add_node_group(int p_node, int p_group);
 	void set_base_scene(int p_idx);
@@ -190,7 +189,6 @@ public:
 VARIANT_ENUM_CAST(SceneState::GenEditState)
 
 class PackedScene : public Resource {
-
 	GDCLASS(PackedScene, Resource);
 	RES_BASE_EXTENSION("scn");
 
@@ -200,8 +198,9 @@ class PackedScene : public Resource {
 	Dictionary _get_bundled_scene() const;
 
 protected:
-	virtual bool editor_can_reload_from_file() { return false; } // this is handled by editor better
+	virtual bool editor_can_reload_from_file() override { return false; } // this is handled by editor better
 	static void _bind_methods();
+	virtual void reset_state() override;
 
 public:
 	enum GenEditState {
@@ -214,15 +213,15 @@ public:
 
 	void clear();
 
-	bool can_instance() const;
-	Node *instance(GenEditState p_edit_state = GEN_EDIT_STATE_DISABLED) const;
+	bool can_instantiate() const;
+	Node *instantiate(GenEditState p_edit_state = GEN_EDIT_STATE_DISABLED) const;
 
 	void recreate_state();
 	void replace_state(Ref<SceneState> p_by);
 
-	virtual void set_path(const String &p_path, bool p_take_over = false);
+	virtual void set_path(const String &p_path, bool p_take_over = false) override;
 #ifdef TOOLS_ENABLED
-	virtual void set_last_modified_time(uint64_t p_time) { state->set_last_modified_time(p_time); }
+	virtual void set_last_modified_time(uint64_t p_time) override { state->set_last_modified_time(p_time); }
 
 #endif
 	Ref<SceneState> get_state();

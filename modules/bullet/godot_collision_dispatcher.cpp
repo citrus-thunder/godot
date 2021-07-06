@@ -1,13 +1,12 @@
 /*************************************************************************/
 /*  godot_collision_dispatcher.cpp                                       */
-/*  Author: AndreaCatania                                                */
 /*************************************************************************/
 /*                       This file is part of:                           */
 /*                           GODOT ENGINE                                */
-/*                    http://www.godotengine.org                         */
+/*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -30,7 +29,12 @@
 /*************************************************************************/
 
 #include "godot_collision_dispatcher.h"
+
 #include "collision_object_bullet.h"
+
+/**
+	@author AndreaCatania
+*/
 
 const int GodotCollisionDispatcher::CASTED_TYPE_AREA = static_cast<int>(CollisionObjectBullet::TYPE_AREA);
 
@@ -39,7 +43,7 @@ GodotCollisionDispatcher::GodotCollisionDispatcher(btCollisionConfiguration *col
 
 bool GodotCollisionDispatcher::needsCollision(const btCollisionObject *body0, const btCollisionObject *body1) {
 	if (body0->getUserIndex() == CASTED_TYPE_AREA || body1->getUserIndex() == CASTED_TYPE_AREA) {
-		// Avoide area narrow phase
+		// Avoid area narrow phase
 		return false;
 	}
 	return btCollisionDispatcher::needsCollision(body0, body1);
@@ -47,7 +51,7 @@ bool GodotCollisionDispatcher::needsCollision(const btCollisionObject *body0, co
 
 bool GodotCollisionDispatcher::needsResponse(const btCollisionObject *body0, const btCollisionObject *body1) {
 	if (body0->getUserIndex() == CASTED_TYPE_AREA || body1->getUserIndex() == CASTED_TYPE_AREA) {
-		// Avoide area narrow phase
+		// Avoid area narrow phase
 		return false;
 	}
 	return btCollisionDispatcher::needsResponse(body0, body1);

@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,47 +27,51 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
+
 #ifndef GDMONOFIELD_H
 #define GDMONOFIELD_H
 
 #include "gd_mono.h"
 #include "gd_mono_header.h"
+#include "i_mono_class_member.h"
 
-class GDMonoField {
+class GDMonoField : public IMonoClassMember {
 	GDMonoClass *owner;
 	MonoClassField *mono_field;
 
-	String name;
+	StringName name;
 	ManagedType type;
 
 	bool attrs_fetched;
 	MonoCustomAttrInfo *attributes;
 
 public:
-	_FORCE_INLINE_ String get_name() const { return name; }
+	virtual GDMonoClass *get_enclosing_class() const final { return owner; }
+
+	virtual MemberType get_member_type() const final { return MEMBER_TYPE_FIELD; }
+
+	virtual StringName get_name() const final { return name; }
+
+	virtual bool is_static() final;
+	virtual Visibility get_visibility() final;
+
+	virtual bool has_attribute(GDMonoClass *p_attr_class) final;
+	virtual MonoObject *get_attribute(GDMonoClass *p_attr_class) final;
+	void fetch_attributes();
+
 	_FORCE_INLINE_ ManagedType get_type() const { return type; }
 
-	_FORCE_INLINE_ MonoClassField *get_raw() const { return mono_field; }
-
+	void set_value(MonoObject *p_object, MonoObject *p_value);
 	void set_value_raw(MonoObject *p_object, void *p_ptr);
-	void set_value(MonoObject *p_object, const Variant &p_value);
+	void set_value_from_variant(MonoObject *p_object, const Variant &p_value);
 
-	_FORCE_INLINE_ MonoObject *get_value(MonoObject *p_object) {
-		return mono_field_get_value_object(mono_domain_get(), mono_field, p_object);
-	}
+	MonoObject *get_value(MonoObject *p_object);
 
 	bool get_bool_value(MonoObject *p_object);
 	int get_int_value(MonoObject *p_object);
 	String get_string_value(MonoObject *p_object);
 
-	bool has_attribute(GDMonoClass *p_attr_class);
-	MonoObject *get_attribute(GDMonoClass *p_attr_class);
-	void fetch_attributes();
-
-	bool is_static();
-	GDMono::MemberVisibility get_visibility();
-
-	GDMonoField(MonoClassField *p_raw_field, GDMonoClass *p_owner);
+	GDMonoField(MonoClassField *p_mono_field, GDMonoClass *p_owner);
 	~GDMonoField();
 };
 

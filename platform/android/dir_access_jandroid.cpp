@@ -5,8 +5,8 @@
 /*                           GODOT ENGINE                                */
 /*                      https://godotengine.org                          */
 /*************************************************************************/
-/* Copyright (c) 2007-2017 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2017 Godot Engine contributors (cf. AUTHORS.md)    */
+/* Copyright (c) 2007-2021 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2021 Godot Engine contributors (cf. AUTHORS.md).   */
 /*                                                                       */
 /* Permission is hereby granted, free of charge, to any person obtaining */
 /* a copy of this software and associated documentation files (the       */
@@ -27,29 +27,27 @@
 /* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
-#ifndef ANDROID_NATIVE_ACTIVITY
 
 #include "dir_access_jandroid.h"
-#include "file_access_jandroid.h"
-#include "print_string.h"
+#include "core/string/print_string.h"
+#include "file_access_android.h"
+#include "string_android.h"
 #include "thread_jandroid.h"
 
-jobject DirAccessJAndroid::io = NULL;
-jclass DirAccessJAndroid::cls = NULL;
-jmethodID DirAccessJAndroid::_dir_open = NULL;
-jmethodID DirAccessJAndroid::_dir_next = NULL;
-jmethodID DirAccessJAndroid::_dir_close = NULL;
-jmethodID DirAccessJAndroid::_dir_is_dir = NULL;
+jobject DirAccessJAndroid::io = nullptr;
+jclass DirAccessJAndroid::cls = nullptr;
+jmethodID DirAccessJAndroid::_dir_open = nullptr;
+jmethodID DirAccessJAndroid::_dir_next = nullptr;
+jmethodID DirAccessJAndroid::_dir_close = nullptr;
+jmethodID DirAccessJAndroid::_dir_is_dir = nullptr;
 
 DirAccess *DirAccessJAndroid::create_fs() {
-
 	return memnew(DirAccessJAndroid);
 }
 
 Error DirAccessJAndroid::list_dir_begin() {
-
 	list_dir_end();
-	JNIEnv *env = ThreadAndroid::get_env();
+	JNIEnv *env = get_jni_env();
 
 	jstring js = env->NewStringUTF(current_dir.utf8().get_data());
 	int res = env->CallIntMethod(io, _dir_open, js);
@@ -62,55 +60,47 @@ Error DirAccessJAndroid::list_dir_begin() {
 }
 
 String DirAccessJAndroid::get_next() {
-
 	ERR_FAIL_COND_V(id == 0, "");
 
-	JNIEnv *env = ThreadAndroid::get_env();
+	JNIEnv *env = get_jni_env();
 	jstring str = (jstring)env->CallObjectMethod(io, _dir_next, id);
 	if (!str)
 		return "";
 
-	String ret = String::utf8(env->GetStringUTFChars((jstring)str, NULL));
+	String ret = jstring_to_string((jstring)str, env);
 	env->DeleteLocalRef((jobject)str);
 	return ret;
 }
 
 bool DirAccessJAndroid::current_is_dir() const {
-
-	JNIEnv *env = ThreadAndroid::get_env();
+	JNIEnv *env = get_jni_env();
 
 	return env->CallBooleanMethod(io, _dir_is_dir, id);
 }
 
 bool DirAccessJAndroid::current_is_hidden() const {
-
 	return current != "." && current != ".." && current.begins_with(".");
 }
 
 void DirAccessJAndroid::list_dir_end() {
-
 	if (id == 0)
 		return;
 
-	JNIEnv *env = ThreadAndroid::get_env();
+	JNIEnv *env = get_jni_env();
 	env->CallVoidMethod(io, _dir_close, id);
 	id = 0;
 }
 
 int DirAccessJAndroid::get_drive_count() {
-
 	return 0;
 }
 
 String DirAccessJAndroid::get_drive(int p_drive) {
-
 	return "";
 }
 
 Error DirAccessJAndroid::change_dir(String p_dir) {
-
-	JNIEnv *env = ThreadAndroid::get_env();
-	p_dir = p_dir.simplify_path();
+	JNIEnv *env = get_jni_env();
 
 	if (p_dir == "" || p_dir == "." || (p_dir == ".." && current_dir == ""))
 		return OK;
@@ -129,7 +119,6 @@ Error DirAccessJAndroid::change_dir(String p_dir) {
 	else
 		new_dir = current_dir.plus_file(p_dir);
 
-	//print_line("new dir is: "+new_dir);
 	//test if newdir exists
 	new_dir = new_dir.simplify_path();
 
@@ -146,21 +135,18 @@ Error DirAccessJAndroid::change_dir(String p_dir) {
 	return OK;
 }
 
-String DirAccessJAndroid::get_current_dir() {
-
+String DirAccessJAndroid::get_current_dir(bool p_include_drive) {
 	return "res://" + current_dir;
 }
 
 bool DirAccessJAndroid::file_exists(String p_file) {
-
-	JNIEnv *env = ThreadAndroid::get_env();
 	String sd;
 	if (current_dir == "")
 		sd = p_file;
 	else
 		sd = current_dir.plus_file(p_file);
 
-	FileAccessJAndroid *f = memnew(FileAccessJAndroid);
+	FileAccessAndroid *f = memnew(FileAccessAndroid);
 	bool exists = f->file_exists(sd);
 	memdelete(f);
 
@@ -168,8 +154,7 @@ bool DirAccessJAndroid::file_exists(String p_file) {
 }
 
 bool DirAccessJAndroid::dir_exists(String p_dir) {
-
-	JNIEnv *env = ThreadAndroid::get_env();
+	JNIEnv *env = get_jni_env();
 
 	String sd;
 
@@ -201,63 +186,44 @@ bool DirAccessJAndroid::dir_exists(String p_dir) {
 }
 
 Error DirAccessJAndroid::make_dir(String p_dir) {
-
 	ERR_FAIL_V(ERR_UNAVAILABLE);
 }
 
 Error DirAccessJAndroid::rename(String p_from, String p_to) {
-
 	ERR_FAIL_V(ERR_UNAVAILABLE);
 }
 
 Error DirAccessJAndroid::remove(String p_name) {
-
 	ERR_FAIL_V(ERR_UNAVAILABLE);
 }
 
-//FileType get_file_type() const;
-size_t DirAccessJAndroid::get_space_left() {
+String DirAccessJAndroid::get_filesystem_type() const {
+	return "APK";
+}
 
+uint64_t DirAccessJAndroid::get_space_left() {
 	return 0;
 }
 
 void DirAccessJAndroid::setup(jobject p_io) {
-
-	JNIEnv *env = ThreadAndroid::get_env();
+	JNIEnv *env = get_jni_env();
 	io = p_io;
-	__android_log_print(ANDROID_LOG_INFO, "godot", "STEP7");
 
 	jclass c = env->GetObjectClass(io);
 	cls = (jclass)env->NewGlobalRef(c);
-	__android_log_print(ANDROID_LOG_INFO, "godot", "STEP8");
 
 	_dir_open = env->GetMethodID(cls, "dir_open", "(Ljava/lang/String;)I");
-	if (_dir_open != 0) {
-		__android_log_print(ANDROID_LOG_INFO, "godot", "*******GOT METHOD _dir_open ok!!");
-	}
 	_dir_next = env->GetMethodID(cls, "dir_next", "(I)Ljava/lang/String;");
-	if (_dir_next != 0) {
-		__android_log_print(ANDROID_LOG_INFO, "godot", "*******GOT METHOD _dir_next ok!!");
-	}
 	_dir_close = env->GetMethodID(cls, "dir_close", "(I)V");
-	if (_dir_close != 0) {
-		__android_log_print(ANDROID_LOG_INFO, "godot", "*******GOT METHOD _dir_close ok!!");
-	}
 	_dir_is_dir = env->GetMethodID(cls, "dir_is_dir", "(I)Z");
-	if (_dir_is_dir != 0) {
-		__android_log_print(ANDROID_LOG_INFO, "godot", "*******GOT METHOD _dir_is_dir ok!!");
-	}
 
 	//(*env)->CallVoidMethod(env,obj,aMethodID, myvar);
 }
 
 DirAccessJAndroid::DirAccessJAndroid() {
-
 	id = 0;
 }
 
 DirAccessJAndroid::~DirAccessJAndroid() {
-
 	list_dir_end();
 }
-#endif
